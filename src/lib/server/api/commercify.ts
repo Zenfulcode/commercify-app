@@ -1,8 +1,7 @@
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import type { Currency, Order, PaginatedData, Product } from '$lib/types';
+import type { Currency, Order, PaginatedData, Product, ProductVariant } from '$lib/types';
 import {
-	type VariantDTO as ApiVariant,
 	type CheckoutDTO,
 	type ResponseDTO,
 	type AddToCheckoutRequest,
@@ -18,7 +17,12 @@ import {
 	type ProductDTO,
 	type PaginationDTO,
 	type CurrencySummaryDTO,
-	type ShippingOptionDTO
+	type ShippingOptionDTO,
+	type CreateProductRequest,
+	type UpdateProductRequest,
+	type CreateVariantRequest,
+	type VariantDTO,
+	type UpdateVariantRequest
 } from './types';
 import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
 
@@ -135,8 +139,10 @@ export class CommercifyClient {
 				};
 			}
 		} catch (error) {
-			const errorMessage = `Error searching products: ${error instanceof Error ? error.message : String(error)}`;
-			console.error(errorMessage);
+			console.error(
+				'Error searching products:',
+				error instanceof Error ? error.message : String(error)
+			);
 
 			return {
 				items: [],
@@ -163,13 +169,262 @@ export class CommercifyClient {
 				return null;
 			}
 		} catch (error) {
-			if (error instanceof Error) {
-				console.error(`Error fetching product ${productId}:`, error.message);
-			} else {
-				console.error(`Error fetching product ${productId}:`, String(error));
-			}
+			console.error(
+				`Error fetching product ${productId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
 
 			return null;
+		}
+	}
+
+	/**
+	 * Create a new product
+	 * @param data Product creation data
+	 * @example
+	 * const newProduct = await commercify.createProduct({
+	 *   name: 'New Product',
+	 *   description: 'This is a new product',
+	 *   sku: 'new-product-sku',
+	 *   price: 19.99,
+	 *   stock: 100,
+	 *   category_id: '12345',
+	 *   images: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
+	 *   has_variants: false
+	 * });
+	 * @returns Created product or null if creation failed
+	 */
+	async createProduct(data: CreateProductRequest): Promise<Product | null> {
+		try {
+			const response = await this.request<ResponseDTO<ProductDTO>>('/admin/products', {
+				method: 'POST',
+				body: JSON.stringify(data)
+			});
+
+			if (response.success && response.data) {
+				return this.mapApiProductToProduct(response.data);
+			} else {
+				console.error('Failed to create product:', response.error);
+				return null;
+			}
+		} catch (error) {
+			console.error(
+				'Error creating product:',
+				error instanceof Error ? error.message : String(error)
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Edit an existing product
+	 * @param productId ID of the product to edit
+	 * @param data Product update data
+	 * @example
+	 * const updatedProduct = await commercify.editProduct('product-id', {
+	 *   name: 'Updated Product Name',
+	 *   description: 'Updated description',
+	 *   price: 24.99,
+	 *   stock: 50,
+	 *   images: ['https://example.com/new-image.jpg'],
+	 *   has_variants: true,
+	 *   variants: [
+	 *     {
+	 *       id: 'variant-id',
+	 *       sku: 'new-variant-sku',
+	 *       price: 22.99,
+	 *       stock: 30,
+	 *       attributes: { color: 'red', size: 'M' },
+	 *       images: ['https://example.com/variant-image.jpg'],
+	 *       is_default: true
+	 *     }
+	 *   ]
+	 * });
+	 * @returns Updated product or null if update failed
+	 */
+	async editProduct(productId: string, data: UpdateProductRequest): Promise<Product | null> {
+		if (!productId) {
+			console.warn('No product ID provided, returning null');
+			return null;
+		}
+		try {
+			const response = await this.request<ResponseDTO<ProductDTO>>(`/admin/products/${productId}`, {
+				method: 'PUT',
+				body: JSON.stringify(data)
+			});
+			if (response.success && response.data) {
+				return this.mapApiProductToProduct(response.data);
+			} else {
+				console.error('Failed to edit product:', response.error);
+				return null;
+			}
+		} catch (error) {
+			console.error(
+				`Error editing product ${productId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Delete a product by ID
+	 * @param productId ID of the product to delete
+	 * @returns True if deletion was successful, false otherwise
+	 */
+	async deleteProduct(productId: string): Promise<string> {
+		if (!productId) {
+			console.warn('No product ID provided, returning false');
+			return 'No product ID provided';
+		}
+		try {
+			const response = await this.request<ResponseDTO<string>>(`/admin/products/${productId}`, {
+				method: 'DELETE'
+			});
+			if (response.success) {
+				return response.data || 'Product deleted successfully';
+			} else {
+				console.error('Failed to delete product:', response.error);
+				return response.error || 'Failed to delete product';
+			}
+		} catch (error) {
+			console.error(
+				`Error deleting product ${productId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return `Error deleting product ${productId}: ${
+				error instanceof Error ? error.message : String(error)
+			}`;
+		}
+	}
+
+	/**
+	 * Add a new product variant
+	 * @param productId ID of the product to add the variant to
+	 * @param variantData Variant data to add
+	 * @example
+	 * const newVariant = await commercify.addProductVariant('product-id', {
+	 *   sku: 'new-variant-sku',
+	 *   price: 22.99,
+	 *   stock: 30,
+	 *   attributes: { color: 'red', size: 'M' },
+	 *   images: ['https://example.com/variant-image.jpg'],
+	 *   is_default: true
+	 * });
+	 * @returns Added variant or null if addition failed
+	 */
+	async addProductVariant(
+		productId: string,
+		variantData: CreateVariantRequest
+	): Promise<ProductVariant | null> {
+		if (!productId) {
+			console.warn('No product ID provided, returning null');
+			return null;
+		}
+		try {
+			const response = await this.request<ResponseDTO<VariantDTO>>(
+				`/admin/products/${productId}/variants`,
+				{
+					method: 'POST',
+					body: JSON.stringify(variantData)
+				}
+			);
+			if (response.success && response.data) {
+				return this.mapApiVariantToVariant(response.data);
+			} else {
+				console.error('Failed to add product variant:', response.error);
+				return null;
+			}
+		} catch (error) {
+			console.error(
+				`Error adding variant to product ${productId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Update an existing product variant
+	 * @param productId ID of the product containing the variant
+	 * @param variantId ID of the variant to update
+	 * @param variantData Updated variant data
+	 * @example
+	 * const updatedVariant = await commercify.updateProductVariant('product-id', 'variant-id', {
+	 *  sku: 'updated-variant-sku',
+	 * price: 24.99,
+	 * stock: 50,
+	 * attributes: { color: 'blue', size: 'L' },
+	 * images: ['https://example.com/updated-variant-image.jpg'],
+	 * is_default: false
+	 * });
+	 * @returns Updated variant or null if update failed
+	 */
+	async updateProductVariant(
+		productId: string,
+		variantId: string,
+		variantData: UpdateVariantRequest
+	): Promise<ProductVariant | null> {
+		if (!productId || !variantId) {
+			console.warn('No product or variant ID provided, returning null');
+			return null;
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<VariantDTO>>(
+				`/admin/products/${productId}/variants/${variantId}`,
+				{
+					method: 'PUT',
+					body: JSON.stringify(variantData)
+				}
+			);
+			if (response.success && response.data) {
+				return this.mapApiVariantToVariant(response.data);
+			} else {
+				console.error('Failed to update product variant:', response.error);
+				return null;
+			}
+		} catch (error) {
+			console.error(
+				`Error updating variant ${variantId} for product ${productId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return null;
+		}
+	}
+
+	/**
+	 * Delete a product variant
+	 * @param productId ID of the product containing the variant
+	 * @param variantId ID of the variant to delete
+	 * @returns True if deletion was successful, false otherwise
+	 */
+	async deleteProductVariant(productId: string, variantId: string): Promise<string> {
+		if (!productId || !variantId) {
+			console.warn('No product or variant ID provided, returning false');
+			return 'No product or variant ID provided';
+		}
+		try {
+			const response = await this.request<ResponseDTO<string>>(
+				`/admin/products/${productId}/variants/${variantId}`,
+				{
+					method: 'DELETE'
+				}
+			);
+			if (response.success) {
+				return response.data || 'Variant deleted successfully';
+			} else {
+				console.error('Failed to delete product variant:', response.error);
+				return response.error || 'Failed to delete product variant';
+			}
+		} catch (error) {
+			console.error(
+				`Error deleting variant ${variantId} for product ${productId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return `Error deleting variant ${variantId} for product ${productId}: ${
+				error instanceof Error ? error.message : String(error)
+			}`;
 		}
 	}
 
@@ -214,7 +469,7 @@ export class CommercifyClient {
 	/**
 	 * Map API variant response to our ProductVariant interface
 	 */
-	private mapApiVariantToVariant(apiVariant: ApiVariant): Product['variants'][0] {
+	private mapApiVariantToVariant(apiVariant: VariantDTO): ProductVariant {
 		return {
 			id: apiVariant.id,
 			sku: apiVariant.sku,

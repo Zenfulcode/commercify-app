@@ -607,7 +607,7 @@ export interface CreateProductRequest {
  */
 export interface CreateVariantRequest {
 	sku: string;
-	price?: number /* float64 */;
+	price: number /* float64 */;
 	stock: number /* int */;
 	attributes: VariantAttributeDTO[];
 	images?: string[];
@@ -619,12 +619,20 @@ export interface CreateVariantRequest {
 export interface UpdateProductRequest {
 	name?: string;
 	description?: string;
-	price?: number /* float64 */;
-	stock?: number /* int */;
-	weight?: number /* float64 */;
 	category_id?: number /* uint */;
 	images?: string[];
 	active?: boolean;
+}
+/**
+ * UpdateVariantRequest represents the data needed to update an existing product variant
+ */
+export interface UpdateVariantRequest {
+	sku?: string;
+	price?: number /* float64 */;
+	stock?: number /* int */;
+	attributes?: VariantAttributeDTO[];
+	images?: string[];
+	is_default?: boolean;
 }
 /**
  * ProductListResponse represents a paginated list of products
