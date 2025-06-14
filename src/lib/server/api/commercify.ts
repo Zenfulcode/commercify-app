@@ -1,6 +1,13 @@
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import type { Currency, Order, PaginatedData, Product, ProductVariant } from '$lib/types';
+import type {
+	Currency,
+	Order,
+	OrderSummary,
+	PaginatedData,
+	Product,
+	ProductVariant
+} from '$lib/types';
 import {
 	type CheckoutDTO,
 	type ResponseDTO,
@@ -22,9 +29,16 @@ import {
 	type UpdateProductRequest,
 	type CreateVariantRequest,
 	type VariantDTO,
-	type UpdateVariantRequest
+	type UpdateVariantRequest,
+	type CreateCurrencyRequest,
+	type CurrencyDTO,
+	type UpdateCurrencyRequest,
+	type OrderSearchRequest,
+	type CreateDiscountRequest,
+	type DiscountDTO
 } from './types';
 import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
+import type { CreateDiscount, Discount } from '$lib/types/discount';
 
 export class CommercifyClient {
 	private baseUrl: string;
@@ -78,27 +92,147 @@ export class CommercifyClient {
 	/**
 	 * Get all enabled currencies
 	 */
-	async getCurrencies(): Promise<Currency[]> {
+	async getCurrencies(): Promise<{
+		success: boolean;
+		data?: PaginatedData<Currency>;
+		error?: string;
+	}> {
 		try {
-			const response = await this.request<ListResponseDTO<CurrencySummaryDTO>>('/currencies');
+			const response = await this.request<ListResponseDTO<CurrencyDTO>>('/currencies');
 			if (response.error || !response.data) {
 				console.warn('No currencies found in response, returning empty array');
-				return [];
+				return {
+					error: response.error || 'No currencies found',
+					success: false
+				};
 			}
 
-			return response.data.map((currency) => ({
+			const currencies = response.data.map((currency) => ({
 				code: currency.code,
 				name: currency.name,
 				symbol: currency.symbol,
-				is_default: currency.is_default,
-				exchange_rate: currency.exchange_rate,
-				is_enabled: true,
-				created_at: null,
-				updated_at: null
+				isDefault: currency.is_default,
+				exchangeRate: currency.exchange_rate,
+				isEnabled: true,
+				createdAt: currency.created_at,
+				updatedAt: currency.updated_at
 			}));
+
+			if (currencies.length === 0) {
+				console.warn('No enabled currencies found, returning empty array');
+			}
+
+			return {
+				success: true,
+				data: {
+					items: currencies,
+					pagination: this.mapPaginationData(response.pagination)
+				}
+			};
 		} catch (error) {
 			console.error('Error loading currencies:', error);
-			return [];
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error)
+			};
+		}
+	}
+
+	async createCurrency(currencyData: CreateCurrencyRequest): Promise<{
+		success: boolean;
+		data?: Currency;
+		error?: string;
+	}> {
+		try {
+			const response = await this.request<ResponseDTO<CurrencyDTO>>('/admin/currencies', {
+				method: 'POST',
+				body: JSON.stringify(currencyData)
+			});
+
+			if (response.success && response.data) {
+				return {
+					data: {
+						code: response.data.code,
+						name: response.data.name,
+						symbol: response.data.symbol,
+						isDefault: response.data.is_default,
+						exchangeRate: response.data.exchange_rate,
+						isEnabled: response.data.is_enabled,
+						createdAt: response.data.created_at || null,
+						updatedAt: response.data.updated_at || null
+					},
+					success: true
+				};
+			} else {
+				console.error('Failed to create currency:', response.error);
+				return {
+					success: false,
+					error: response.error || 'Failed to create currency'
+				};
+			}
+		} catch (error) {
+			console.error('Error creating currency:', error);
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error)
+			};
+		}
+	}
+
+	async updateCurrency(
+		code: string,
+		data: UpdateCurrencyRequest
+	): Promise<{
+		success: boolean;
+		data?: Currency;
+		error?: string;
+	}> {
+		if (!code) {
+			console.warn('No currency code provided, returning null');
+			return {
+				error: 'No currency code provided',
+				success: false
+			};
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<CurrencyDTO>>(`/admin/currencies/${code}`, {
+				method: 'PUT',
+				body: JSON.stringify(data)
+			});
+
+			if (response.success && response.data) {
+				return {
+					data: {
+						code: response.data.code,
+						name: response.data.name,
+						symbol: response.data.symbol,
+						isDefault: response.data.is_default,
+						exchangeRate: response.data.exchange_rate,
+						isEnabled: response.data.is_enabled,
+						createdAt: response.data.created_at || null,
+						updatedAt: response.data.updated_at || null
+					},
+					success: true
+				};
+			} else {
+				console.error('Failed to update currency:', response.error);
+				return {
+					error: response.error || 'Failed to update currency',
+					success: false
+				};
+			}
+		} catch (error) {
+			console.error(
+				`Error updating currency ${code}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				error: `Error updating currency ${code}: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+				success: false
+			};
 		}
 	}
 
@@ -113,7 +247,11 @@ export class CommercifyClient {
 			page_size?: number;
 			currency?: string;
 		} = {}
-	): Promise<PaginatedData<Product>> {
+	): Promise<{
+		success: boolean;
+		data?: PaginatedData<Product>;
+		error?: string;
+	}> {
 		const searchParams = new URLSearchParams();
 
 		if (params.search) searchParams.append('search', params.search);
@@ -129,13 +267,16 @@ export class CommercifyClient {
 
 			if (response.error || !response.data) {
 				return {
-					items: [],
-					pagination: this.mapPaginationData(undefined)
+					success: false,
+					error: response.error || 'No products found'
 				};
 			} else {
 				return {
-					items: response.data.map(this.mapApiProductToProduct),
-					pagination: this.mapPaginationData(response.pagination)
+					success: true,
+					data: {
+						items: response.data.map(this.mapApiProductToProduct),
+						pagination: this.mapPaginationData(response.pagination)
+					}
 				};
 			}
 		} catch (error) {
@@ -145,8 +286,8 @@ export class CommercifyClient {
 			);
 
 			return {
-				items: [],
-				pagination: this.mapPaginationData(undefined)
+				success: false,
+				error: error instanceof Error ? error.message : String(error)
 			};
 		}
 	}
@@ -154,19 +295,32 @@ export class CommercifyClient {
 	/**
 	 * Get a single product by ID
 	 */
-	async getProduct(productId: string): Promise<Product | null> {
+	async getProduct(productId: string): Promise<{
+		success: boolean;
+		data?: Product;
+		error?: string;
+	}> {
 		if (!productId) {
 			console.warn('No product ID provided, returning null');
-			return null;
+			return {
+				success: false,
+				error: 'No product ID provided'
+			};
 		}
 
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>(`/products/${productId}`);
 
 			if (response.success && response.data) {
-				return this.mapApiProductToProduct(response.data);
+				return {
+					success: true,
+					data: this.mapApiProductToProduct(response.data)
+				};
 			} else {
-				return null;
+				return {
+					success: false,
+					error: response.error || 'Product not found'
+				};
 			}
 		} catch (error) {
 			console.error(
@@ -174,7 +328,12 @@ export class CommercifyClient {
 				error instanceof Error ? error.message : String(error)
 			);
 
-			return null;
+			return {
+				success: false,
+				error: `Error fetching product ${productId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
 		}
 	}
 
@@ -194,7 +353,11 @@ export class CommercifyClient {
 	 * });
 	 * @returns Created product or null if creation failed
 	 */
-	async createProduct(data: CreateProductRequest): Promise<Product | null> {
+	async createProduct(data: CreateProductRequest): Promise<{
+		success: boolean;
+		data?: Product;
+		error?: string;
+	}> {
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>('/admin/products', {
 				method: 'POST',
@@ -202,17 +365,26 @@ export class CommercifyClient {
 			});
 
 			if (response.success && response.data) {
-				return this.mapApiProductToProduct(response.data);
+				return {
+					success: true,
+					data: this.mapApiProductToProduct(response.data)
+				};
 			} else {
 				console.error('Failed to create product:', response.error);
-				return null;
+				return {
+					success: false,
+					error: response.error || 'Failed to create product'
+				};
 			}
 		} catch (error) {
 			console.error(
 				'Error creating product:',
 				error instanceof Error ? error.message : String(error)
 			);
-			return null;
+			return {
+				success: false,
+				error: `Error creating product: ${error instanceof Error ? error.message : String(error)}`
+			};
 		}
 	}
 
@@ -242,10 +414,20 @@ export class CommercifyClient {
 	 * });
 	 * @returns Updated product or null if update failed
 	 */
-	async editProduct(productId: string, data: UpdateProductRequest): Promise<Product | null> {
+	async editProduct(
+		productId: string,
+		data: UpdateProductRequest
+	): Promise<{
+		success: boolean;
+		data?: Product;
+		error?: string;
+	}> {
 		if (!productId) {
 			console.warn('No product ID provided, returning null');
-			return null;
+			return {
+				success: false,
+				error: 'No product ID provided'
+			};
 		}
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>(`/admin/products/${productId}`, {
@@ -253,17 +435,28 @@ export class CommercifyClient {
 				body: JSON.stringify(data)
 			});
 			if (response.success && response.data) {
-				return this.mapApiProductToProduct(response.data);
+				return {
+					success: true,
+					data: this.mapApiProductToProduct(response.data)
+				};
 			} else {
 				console.error('Failed to edit product:', response.error);
-				return null;
+				return {
+					success: false,
+					error: response.error || 'Failed to edit product'
+				};
 			}
 		} catch (error) {
 			console.error(
 				`Error editing product ${productId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
-			return null;
+			return {
+				success: false,
+				error: `Error editing product ${productId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
 		}
 	}
 
@@ -272,29 +465,45 @@ export class CommercifyClient {
 	 * @param productId ID of the product to delete
 	 * @returns True if deletion was successful, false otherwise
 	 */
-	async deleteProduct(productId: string): Promise<string> {
+	async deleteProduct(productId: string): Promise<{
+		success: boolean;
+		data?: string;
+		error?: string;
+	}> {
 		if (!productId) {
 			console.warn('No product ID provided, returning false');
-			return 'No product ID provided';
+			return {
+				success: false,
+				error: 'No product ID provided'
+			};
 		}
 		try {
 			const response = await this.request<ResponseDTO<string>>(`/admin/products/${productId}`, {
 				method: 'DELETE'
 			});
 			if (response.success) {
-				return response.data || 'Product deleted successfully';
+				return {
+					success: true,
+					data: response.data || 'Product deleted successfully'
+				};
 			} else {
 				console.error('Failed to delete product:', response.error);
-				return response.error || 'Failed to delete product';
+				return {
+					success: false,
+					error: response.error || 'Failed to delete product'
+				};
 			}
 		} catch (error) {
 			console.error(
 				`Error deleting product ${productId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
-			return `Error deleting product ${productId}: ${
-				error instanceof Error ? error.message : String(error)
-			}`;
+			return {
+				success: false,
+				error: `Error deleting product ${productId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
 		}
 	}
 
@@ -316,10 +525,17 @@ export class CommercifyClient {
 	async addProductVariant(
 		productId: string,
 		variantData: CreateVariantRequest
-	): Promise<ProductVariant | null> {
+	): Promise<{
+		success: boolean;
+		data?: ProductVariant;
+		error?: string;
+	}> {
 		if (!productId) {
 			console.warn('No product ID provided, returning null');
-			return null;
+			return {
+				success: false,
+				error: 'No product ID provided'
+			};
 		}
 		try {
 			const response = await this.request<ResponseDTO<VariantDTO>>(
@@ -330,17 +546,28 @@ export class CommercifyClient {
 				}
 			);
 			if (response.success && response.data) {
-				return this.mapApiVariantToVariant(response.data);
+				return {
+					success: true,
+					data: this.mapApiVariantToVariant(response.data)
+				};
 			} else {
 				console.error('Failed to add product variant:', response.error);
-				return null;
+				return {
+					success: false,
+					error: response.error || 'Failed to add product variant'
+				};
 			}
 		} catch (error) {
 			console.error(
 				`Error adding variant to product ${productId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
-			return null;
+			return {
+				success: false,
+				error: `Error adding variant to product ${productId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
 		}
 	}
 
@@ -364,10 +591,17 @@ export class CommercifyClient {
 		productId: string,
 		variantId: string,
 		variantData: UpdateVariantRequest
-	): Promise<ProductVariant | null> {
+	): Promise<{
+		success: boolean;
+		data?: ProductVariant;
+		error?: string;
+	}> {
 		if (!productId || !variantId) {
 			console.warn('No product or variant ID provided, returning null');
-			return null;
+			return {
+				success: false,
+				error: 'No product or variant ID provided'
+			};
 		}
 
 		try {
@@ -379,17 +613,28 @@ export class CommercifyClient {
 				}
 			);
 			if (response.success && response.data) {
-				return this.mapApiVariantToVariant(response.data);
+				return {
+					success: true,
+					data: this.mapApiVariantToVariant(response.data)
+				};
 			} else {
 				console.error('Failed to update product variant:', response.error);
-				return null;
+				return {
+					success: false,
+					error: response.error || 'Failed to update product variant'
+				};
 			}
 		} catch (error) {
 			console.error(
 				`Error updating variant ${variantId} for product ${productId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
-			return null;
+			return {
+				success: false,
+				error: `Error updating variant ${variantId} for product ${productId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
 		}
 	}
 
@@ -457,11 +702,14 @@ export class CommercifyClient {
 			name: apiProduct.name,
 			description: apiProduct.description,
 			sku: apiProduct.sku,
-			price: apiProduct.price,
+			price: {
+				amount: apiProduct.price,
+				currency: apiProduct.currency
+			},
 			stock: apiProduct.stock ?? apiProduct.stock ?? 0,
-			category_id: apiProduct.category_id,
+			categoryId: apiProduct.category_id,
 			images: apiProduct.images,
-			has_variants: apiProduct.has_variants,
+			hasVariants: apiProduct.has_variants,
 			variants: apiProduct.variants?.map(this.mapApiVariantToVariant) || []
 		};
 	}
@@ -473,11 +721,14 @@ export class CommercifyClient {
 		return {
 			id: apiVariant.id,
 			sku: apiVariant.sku,
-			price: apiVariant.price,
+			price: {
+				amount: apiVariant.price,
+				currency: apiVariant.currency
+			},
 			stock: apiVariant.stock ?? apiVariant.stock ?? 0,
 			attributes: apiVariant.attributes,
 			images: apiVariant.images || [],
-			is_default: apiVariant.is_default
+			isDefault: apiVariant.is_default
 		};
 	}
 
@@ -974,6 +1225,80 @@ export class CommercifyClient {
 			success: false,
 			error: 'This method is not implemented yet. Please check back later.'
 		};
+	}
+
+	async getOrders(
+		params: OrderSearchRequest
+	): Promise<{ success: boolean; data?: PaginatedData<OrderSummary>; error?: string }> {
+		return {
+			success: false,
+			error: 'This method is not implemented yet. Please check back later.'
+		};
+	}
+
+	async createDiscount(input: CreateDiscount): Promise<{
+		success: boolean;
+		data?: Discount;
+		error?: string;
+	}> {
+		const requestBody: CreateDiscountRequest = {
+			code: input.code,
+			type: input.type,
+			method: input.method,
+			value: input.value,
+			min_order_value: input.minimumOrderAmount || 0,
+			max_discount_value: 0,
+			product_ids: input.productIds,
+			category_ids: input.categoryIds,
+			start_date: input.startDate,
+			end_date: input.expiresAt || new Date('9999-12-31T23:59:59.999Z').toISOString(),
+			usage_limit: input.usageLimit || 0
+		};
+
+		try {
+			const response = await this.request<ResponseDTO<DiscountDTO>>('/admin/discounts', {
+				method: 'POST',
+				body: JSON.stringify(requestBody)
+			});
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to create discount'
+				};
+			}
+
+			return {
+				success: true,
+				data: {
+					id: response.data.id,
+					code: response.data.code,
+					type: response.data.type,
+					method: response.data.method,
+					value: response.data.value,
+					minOrderValue: response.data.min_order_value,
+					maxDiscountValue: response.data.max_discount_value,
+					productIds: response.data.product_ids || [],
+					categoryIds: response.data.category_ids || [],
+					startDate: response.data.start_date,
+					expiresAt: response.data.end_date,
+					usageLimit: response.data.usage_limit,
+					isActive: response.data.active,
+					currentUsage: response.data.current_usage,
+					createdAt: response.data.created_at,
+					updatedAt: response.data.updated_at
+				}
+			};
+		} catch (error) {
+			console.error(
+				'Error creating discount:',
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: 'Failed to create discount'
+			};
+		}
 	}
 }
 

@@ -1,3 +1,5 @@
+import type { Price } from './common';
+
 export type PaymentMethod = 'credit_card' | 'wallet';
 export type PaymentStatus = 'pending' | 'completed' | 'failed';
 export type PaymentProvider = 'stripe' | 'mobilepay';
@@ -8,8 +10,7 @@ export interface PaymentDetails {
 	status: PaymentStatus; // e.g., 'pending', 'completed', 'failed'
 	captured: boolean; // Whether the payment has been captured
 	refunded: boolean; // Whether the payment has been refunded
-	amount: number; // Total amount paid
-	currency: string; // Currency code, e.g., 'USD', 'EUR'
+	amout: Price;
 	provider: PaymentProvider; // e.g., 'stripe', 'mobilepay'
 	events: {
 		type: 'charge' | 'capture' | 'refund';

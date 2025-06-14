@@ -123,7 +123,7 @@ export class ApiUtils {
 	 * Get the default variant for a product
 	 */
 	static getDefaultVariant(product: Product): Product['variants'][0] | undefined {
-		return product.variants.find((variant) => variant.is_default) || product.variants[0];
+		return product.variants.find((variant) => variant.isDefault) || product.variants[0];
 	}
 
 	/**

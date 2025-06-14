@@ -28,13 +28,17 @@ export class ApiHealthCheck {
 		// Test 1: Currency endpoint
 		try {
 			const start = Date.now();
-			const currencies = await commercify.getCurrencies();
+			const result = await commercify.getCurrencies();
 			const duration = Date.now() - start;
+
+			if (!result.success || !result.data) {
+				throw new Error(result.error || 'No data returned');
+			}
 
 			tests.push({
 				name: 'Currency API',
 				success: true,
-				message: `Successfully fetched ${currencies.length} currencies`,
+				message: `Successfully fetched ${result.data.items.length} currencies`,
 				duration
 			});
 		} catch (error) {
@@ -51,10 +55,14 @@ export class ApiHealthCheck {
 			const result = await commercify.searchProducts({ page_size: 1 });
 			const duration = Date.now() - start;
 
+			if (!result.success || !result.data) {
+				throw new Error(result.error || 'No data returned');
+			}
+
 			tests.push({
 				name: 'Products Search API',
 				success: true,
-				message: `Successfully searched products, found ${result.items.length} products`,
+				message: `Successfully searched products, found ${result.data.items.length} products`,
 				duration
 			});
 		} catch (error) {
@@ -101,14 +109,22 @@ export class ApiHealthCheck {
 		api_url: string;
 	}> {
 		try {
-			const [currencies, searchResult] = await Promise.all([
+			const [result, searchResult] = await Promise.all([
 				commercify.getCurrencies(),
 				commercify.searchProducts({ page_size: 1 })
 			]);
 
+			if (!result.success || !result.data) {
+				throw new Error(result.error || 'Failed to fetch currencies');
+			}
+
+			if (!searchResult.success || !searchResult.data) {
+				throw new Error(searchResult.error || 'Failed to search products');
+			}
+
 			return {
-				currencies_count: currencies.length,
-				sample_product_count: searchResult.pagination.totalItems,
+				currencies_count: result.data.items.length,
+				sample_product_count: searchResult.data.pagination.totalItems,
 				environment: dev ? 'development' : 'production',
 				api_url: dev
 					? env.API_BASE_URL_DEV || 'Not configured'

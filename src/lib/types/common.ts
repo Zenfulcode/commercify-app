@@ -7,3 +7,8 @@ export interface PaginatedData<T> {
 		itemsPerPage: number; // Number of items per page
 	};
 }
+
+export interface Price {
+	currency: string; // Currency code (e.g., 'USD', 'EUR')
+	amount: number; // Amount in the smallest unit (e.g., cents for USD)
+}
