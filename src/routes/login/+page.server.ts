@@ -6,16 +6,17 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	// Check if user is already logged in
 	const accessToken = cookies.get('access_token');
 	const userRole = cookies.get('user_role');
-	
+
 	if (accessToken && userRole === 'admin') {
 		redirect(303, '/admin');
 	}
-	
+
 	return {};
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies }) => {
+	default: async ({ request, cookies, locals }) => {
+		const { commercify } = locals;
 		const formData = await request.formData();
 		const email = formData.get('email') as string;
 		const password = formData.get('password') as string;
@@ -28,7 +29,6 @@ export const actions: Actions = {
 		}
 
 		try {
-			const commercify = new CommercifyClient();
 			const result = await commercify.sigIn(email, password);
 
 			if (!result.success || !result.data) {
@@ -56,22 +56,6 @@ export const actions: Actions = {
 			});
 
 			cookies.set('user_role', result.data.role, {
-				path: '/',
-				httpOnly: true,
-				secure: true,
-				sameSite: 'strict',
-				maxAge: 60 * 60 * 24 * 7 // 7 days
-			});
-
-			cookies.set('user_email', result.data.email, {
-				path: '/',
-				httpOnly: true,
-				secure: true,
-				sameSite: 'strict',
-				maxAge: 60 * 60 * 24 * 7 // 7 days
-			});
-
-			cookies.set('user_name', `${result.data.firstName} ${result.data.lastName}`, {
 				path: '/',
 				httpOnly: true,
 				secure: true,

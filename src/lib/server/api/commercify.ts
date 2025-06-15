@@ -36,7 +36,8 @@ import {
 	type OrderSearchRequest,
 	type CreateDiscountRequest,
 	type DiscountDTO,
-	type UserLoginResponse
+	type UserLoginResponse,
+	type CreateProductRequest
 } from './types';
 import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
@@ -45,10 +46,30 @@ import type { CommercifyUser } from '$lib/types/user';
 export class CommercifyClient {
 	private baseUrl: string;
 	private cookies?: string;
+	private accessToken?: string;
 
 	constructor(cookies?: string) {
 		this.baseUrl = this.getApiBaseUrl();
 		this.cookies = cookies;
+
+		// Extract access token from cookies if available
+		if (cookies) {
+			this.accessToken = this.extractAccessTokenFromCookies(cookies);
+		}
+	}
+
+	/**
+	 * Extract access token from cookie string
+	 */
+	private extractAccessTokenFromCookies(cookies: string): string | undefined {
+		const match = cookies.match(/access_token=([^;]+)/);
+		const token = match ? match[1] : undefined;
+		console.log('Extracting access token from cookies:', {
+			cookies: cookies.substring(0, 100) + '...',
+			foundToken: !!token,
+			tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+		});
+		return token;
 	}
 
 	/**
@@ -70,10 +91,26 @@ export class CommercifyClient {
 				...(options.headers as Record<string, string>)
 			};
 
-			// Forward cookies from the browser to the backend API
+			// Add Authorization header if access token is available
+			if (this.accessToken) {
+				headers['Authorization'] = `Bearer ${this.accessToken}`;
+				console.log('Adding Authorization header for request to:', endpoint, {
+					hasToken: !!this.accessToken,
+					tokenStart: this.accessToken.substring(0, 20) + '...'
+				});
+			} else {
+				console.log('No access token available for request to:', endpoint);
+			}
+
+			// Forward cookies from the browser to the backend API (for backward compatibility)
 			if (this.cookies) {
 				headers['Cookie'] = this.cookies;
 			}
+
+			console.log('Making request to:', url, {
+				headers: Object.keys(headers),
+				hasAuthHeader: !!headers['Authorization']
+			});
 
 			const response = await fetch(url, {
 				headers,
@@ -81,6 +118,21 @@ export class CommercifyClient {
 			});
 
 			if (!response.ok) {
+				console.error('API request failed:', {
+					url,
+					status: response.status,
+					statusText: response.statusText,
+					headers: Object.keys(headers)
+				});
+
+				// Try to get the response body for more details
+				try {
+					const errorBody = await response.text();
+					console.error('Error response body:', errorBody);
+				} catch (e) {
+					console.error('Could not read error response body');
+				}
+
 				throw new Error(`API request failed: ${response.status} ${response.statusText}`);
 			}
 
@@ -94,7 +146,11 @@ export class CommercifyClient {
 	async sigIn(
 		email: string,
 		password: string
-	): Promise<{ success: boolean; data?: CommercifyUser & { accessToken: string }; error?: string }> {
+	): Promise<{
+		success: boolean;
+		data?: CommercifyUser & { accessToken: string };
+		error?: string;
+	}> {
 		if (!email || !password) {
 			console.warn('Email and password are required for sign in');
 			return { success: false, error: 'Email and password are required' };
@@ -380,7 +436,7 @@ export class CommercifyClient {
 
 	/**
 	 * Create a new product
-	 * @param data Product creation data
+	 * @param input Product creation data
 	 * @example
 	 * const newProduct = await commercify.createProduct({
 	 *   name: 'New Product',
@@ -401,12 +457,12 @@ export class CommercifyClient {
 	 * });
 	 * @returns Created product or null if creation failed
 	 */
-	async createProduct(data: CreateProductInput): Promise<{
+	async createProduct(input: CreateProductInput): Promise<{
 		success: boolean;
 		data?: Product;
 		error?: string;
 	}> {
-		if (!data.name || !data.currency || !data.categoryId) {
+		if (!input.name || !input.currency || !input.categoryId) {
 			console.warn('Name and currency are required to create a product');
 			return {
 				success: false,
@@ -414,10 +470,29 @@ export class CommercifyClient {
 			};
 		}
 
+		// map data to match API expectations
+		const apiData: CreateProductRequest = {
+			name: input.name,
+			description: input.description || '',
+			currency: input.currency,
+			category_id: input.categoryId,
+			images: input.images || [],
+			active: input.isActive ?? true,
+			variants:
+				input.variants?.map((variant) => ({
+					sku: variant.sku,
+					price: variant.price,
+					stock: variant.stock,
+					attributes: variant.attributes || [],
+					images: variant.images,
+					is_default: variant.isDefault
+				})) || []
+		};
+
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>('/admin/products', {
 				method: 'POST',
-				body: JSON.stringify(data)
+				body: JSON.stringify(apiData)
 			});
 
 			if (response.success && response.data) {
@@ -1373,6 +1448,20 @@ export class CommercifyClient {
 				error: 'Failed to create discount'
 			};
 		}
+	}
+
+	/**
+	 * Set access token manually (useful for debugging or when not using cookies)
+	 */
+	setAccessToken(token: string): void {
+		this.accessToken = token;
+	}
+
+	/**
+	 * Get current access token
+	 */
+	getAccessToken(): string | undefined {
+		return this.accessToken;
 	}
 }
 
