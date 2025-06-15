@@ -94,13 +94,15 @@
 
 			<div class="flex items-center space-x-4">
 				<span class="text-sm text-muted-foreground">Welcome to Admin Dashboard</span>
-				
+
 				<!-- User dropdown menu -->
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
 						<Button variant="ghost" size="sm" class="flex items-center space-x-2">
 							<User class="h-4 w-4" />
-							<span class="hidden sm:inline">{data?.user?.name || data?.user?.email || 'Admin'}</span>
+							<span class="hidden sm:inline"
+								>{data?.user?.name || data?.user?.email || 'Admin'}</span
+							>
 						</Button>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end" class="w-48">
