@@ -1,15 +1,17 @@
 import type { Price } from './common';
 
+export interface VariantAttribute {
+	name: string;
+	value: string;
+}
+
 export interface ProductVariant {
 	id: number;
 	sku: string;
 	price: Price;
-	comparePrice?: Price;
 	stock: number;
-	attributes: Array<{
-		name: string;
-		value: string;
-	}>;
+	weight?: number;
+	attributes: VariantAttribute[];
 	images: string[];
 	isDefault: boolean;
 }
@@ -37,4 +39,41 @@ export interface Currency {
 	isDefault: boolean;
 	createdAt: string | null;
 	updatedAt: string | null;
+}
+
+export interface UpdateProductVariantInput {
+	sku?: string;
+	price?: number /* float64 */;
+	stock?: number /* int */;
+	attributes?: VariantAttribute[];
+	images?: string[];
+	isDefault?: boolean;
+}
+
+export interface CreateProductVariantInput {
+	sku: string;
+	price: number /* float64 */;
+	stock: number /* int */;
+	weight?: number /* float64 */;
+	attributes?: VariantAttribute[];
+	images?: string[];
+	isDefault?: boolean;
+}
+
+export interface CreateProductInput {
+	name: string;
+	description?: string;
+	currency: string;
+	categoryId: number /* int */;
+	images?: string[];
+	isActive?: boolean;
+	variants?: CreateProductVariantInput[];
+}
+
+export interface UpdateProductInput {
+	name?: string;
+	description?: string;
+	categoryId?: number /* int */;
+	images?: string[];
+	isActive?: boolean;
 }

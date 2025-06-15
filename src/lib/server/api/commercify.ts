@@ -1,12 +1,14 @@
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import type {
+	CreateProductInput,
 	Currency,
 	Order,
 	OrderSummary,
 	PaginatedData,
 	Product,
-	ProductVariant
+	ProductVariant,
+	UpdateProductVariantInput
 } from '$lib/types';
 import {
 	type CheckoutDTO,
@@ -23,9 +25,7 @@ import {
 	type ListResponseDTO,
 	type ProductDTO,
 	type PaginationDTO,
-	type CurrencySummaryDTO,
 	type ShippingOptionDTO,
-	type CreateProductRequest,
 	type UpdateProductRequest,
 	type CreateVariantRequest,
 	type VariantDTO,
@@ -344,20 +344,35 @@ export class CommercifyClient {
 	 * const newProduct = await commercify.createProduct({
 	 *   name: 'New Product',
 	 *   description: 'This is a new product',
-	 *   sku: 'new-product-sku',
-	 *   price: 19.99,
-	 *   stock: 100,
-	 *   category_id: '12345',
-	 *   images: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
-	 *   has_variants: false
+	 *   currency: 'USD',
+	 *   categoryId: 'category-id',
+	 *   images: ['https://example.com/image.jpg'], // optional
+	 *   isActive: true,
+	 *   variants: // optional
+	 * 	 [
+	 * 		{
+	 * 			sku: 'variant-sku',
+	 * 			price: 19.99,
+	 * 			stock: 100,
+	 * 			attributes: { color: 'red', size: 'M' },
+	 * 	    }
+	 *   ]
 	 * });
 	 * @returns Created product or null if creation failed
 	 */
-	async createProduct(data: CreateProductRequest): Promise<{
+	async createProduct(data: CreateProductInput): Promise<{
 		success: boolean;
 		data?: Product;
 		error?: string;
 	}> {
+		if (!data.name || !data.currency || !data.categoryId) {
+			console.warn('Name and currency are required to create a product');
+			return {
+				success: false,
+				error: 'Name, categoryId and currency are required to create a product'
+			};
+		}
+
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>('/admin/products', {
 				method: 'POST',
@@ -590,7 +605,7 @@ export class CommercifyClient {
 	async updateProductVariant(
 		productId: string,
 		variantId: string,
-		variantData: UpdateVariantRequest
+		variantData: UpdateProductVariantInput
 	): Promise<{
 		success: boolean;
 		data?: ProductVariant;
@@ -604,12 +619,30 @@ export class CommercifyClient {
 			};
 		}
 
+		if (!variantData || Object.keys(variantData).length === 0) {
+			console.warn('No variant data provided, returning null');
+			return {
+				success: false,
+				error: 'No variant data provided'
+			};
+		}
+
+		// map variantData to match API expectations
+		const apiVariantData: UpdateVariantRequest = {
+			sku: variantData.sku,
+			price: variantData.price,
+			stock: variantData.stock,
+			attributes: variantData.attributes,
+			images: variantData.images,
+			is_default: variantData.isDefault
+		};
+
 		try {
 			const response = await this.request<ResponseDTO<VariantDTO>>(
 				`/admin/products/${productId}/variants/${variantId}`,
 				{
 					method: 'PUT',
-					body: JSON.stringify(variantData)
+					body: JSON.stringify(apiVariantData)
 				}
 			);
 			if (response.success && response.data) {
