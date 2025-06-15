@@ -8,6 +8,12 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			commercify: CommercifyClient;
+			user?: {
+				email?: string;
+				name?: string;
+				role: 'admin';
+				accessToken: string;
+			};
 		}
 		// interface PageData {}
 		// interface PageState {}

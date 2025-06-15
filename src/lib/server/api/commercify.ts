@@ -35,10 +35,12 @@ import {
 	type UpdateCurrencyRequest,
 	type OrderSearchRequest,
 	type CreateDiscountRequest,
-	type DiscountDTO
+	type DiscountDTO,
+	type UserLoginResponse
 } from './types';
 import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
+import type { CommercifyUser } from '$lib/types/user';
 
 export class CommercifyClient {
 	private baseUrl: string;
@@ -86,6 +88,45 @@ export class CommercifyClient {
 		} catch (error) {
 			console.error(`Error fetching ${endpoint}:`, error);
 			throw error;
+		}
+	}
+
+	async sigIn(
+		email: string,
+		password: string
+	): Promise<{ success: boolean; data?: CommercifyUser & { accessToken: string }; error?: string }> {
+		if (!email || !password) {
+			console.warn('Email and password are required for sign in');
+			return { success: false, error: 'Email and password are required' };
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<UserLoginResponse>>('/auth/signin', {
+				method: 'POST',
+				body: JSON.stringify({ email, password })
+			});
+
+			if (!response.success || !response.data) {
+				console.error('Sign in failed:', response.error);
+				return { success: false, error: response.error || 'Sign in failed' };
+			}
+
+			return {
+				success: true,
+				data: {
+					id: response.data.user.id.toString(),
+					email: response.data.user.email,
+					firstName: response.data.user.first_name,
+					lastName: response.data.user.last_name,
+					role: response.data.user.role as 'admin' | 'user',
+					createdAt: response.data.user.created_at,
+					updatedAt: response.data.user.updated_at,
+					accessToken: response.data.access_token
+				}
+			};
+		} catch (error) {
+			console.error('Error during sign in:', error);
+			return { success: false, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 

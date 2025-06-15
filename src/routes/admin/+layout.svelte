@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { cn } from '$lib/utils';
+	import { enhance } from '$app/forms';
 	import {
 		ShoppingBag,
 		Package,
@@ -10,11 +11,14 @@
 		BarChart3,
 		Settings,
 		Menu,
-		X
+		X,
+		LogOut,
+		User
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
-	let { children } = $props();
+	let { children, data } = $props();
 	let sidebarOpen = $state(false);
 
 	const navigation = [
@@ -90,6 +94,33 @@
 
 			<div class="flex items-center space-x-4">
 				<span class="text-sm text-muted-foreground">Welcome to Admin Dashboard</span>
+				
+				<!-- User dropdown menu -->
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						<Button variant="ghost" size="sm" class="flex items-center space-x-2">
+							<User class="h-4 w-4" />
+							<span class="hidden sm:inline">{data?.user?.name || data?.user?.email || 'Admin'}</span>
+						</Button>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end" class="w-48">
+						<DropdownMenu.Label>
+							<div class="flex flex-col space-y-1">
+								<p class="text-sm font-medium">{data?.user?.name || 'Admin'}</p>
+								<p class="text-xs text-muted-foreground">{data?.user?.email}</p>
+							</div>
+						</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						<form method="POST" action="/logout" use:enhance>
+							<button type="submit" class="w-full">
+								<DropdownMenu.Item class="w-full flex items-center">
+									<LogOut class="h-4 w-4 mr-2" />
+									Logout
+								</DropdownMenu.Item>
+							</button>
+						</form>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</div>
 		</header>
 

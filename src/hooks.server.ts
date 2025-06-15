@@ -2,6 +2,30 @@ import type { Handle } from '@sveltejs/kit';
 import { createCommercifyClient } from '$lib/server/api';
 import { sequence } from '@sveltejs/kit/hooks';
 import { env } from '$env/dynamic/private';
+import { redirect } from '@sveltejs/kit';
+
+const handleAuth: Handle = async ({ event, resolve }) => {
+	// Check if the route requires admin authentication
+	if (event.url.pathname.startsWith('/admin')) {
+		const accessToken = event.cookies.get('access_token');
+		const userRole = event.cookies.get('user_role');
+
+		// If not authenticated or not admin, redirect to login
+		if (!accessToken || userRole !== 'admin') {
+			throw redirect(303, '/login');
+		}
+
+		// Add user info to locals for use in admin pages
+		event.locals.user = {
+			email: event.cookies.get('user_email'),
+			name: event.cookies.get('user_name'),
+			role: userRole as 'admin',
+			accessToken
+		};
+	}
+
+	return resolve(event);
+};
 
 const handleCommercify: Handle = async ({ event, resolve }) => {
 	// Create commercify client with forwarded cookies and store in locals
@@ -40,4 +64,4 @@ const handleCommercify: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(handleCommercify);
+export const handle: Handle = sequence(handleAuth, handleCommercify);
