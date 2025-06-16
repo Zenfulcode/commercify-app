@@ -15,14 +15,19 @@
 	import { generateSKU } from '$lib/utils/admin';
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import type { Category, Currency } from '$lib/types';
 
-	let { data }: { data: { form: SuperValidated<ProductSchema>; currencies: any[]; product: any; productId: string } } = $props();
-	const categories = [
-		{ id: '1', name: 'Clothes' },
-		{ id: '2', name: 'Accessories' },
-		{ id: '3', name: 'Electronics' },
-		{ id: '4', name: 'Books' }
-	];
+	let {
+		data
+	}: {
+		data: {
+			form: SuperValidated<ProductSchema>;
+			currencies: Currency[];
+			categories: Category[];
+			product: any;
+			productId: string;
+		};
+	} = $props();
 
 	const form = superForm(data.form, {
 		dataType: 'json',
@@ -39,7 +44,8 @@
 	const { form: formData, enhance, submitting } = form;
 
 	// Reactive variables
-	let selectedCurrency = $state($formData.currency || 'USD');
+	let categories = $state(data.categories || []);
+	let selectedCurrency = $state(data.product.currency);
 
 	// Sheet state for variant configuration
 	let isSheetOpen = $state(false);
@@ -131,9 +137,9 @@
 	}
 
 	function removeVariantAttribute(variantIndex: number, attributeIndex: number) {
-		$formData.variants[variantIndex].attributes = $formData.variants[variantIndex].attributes.filter(
-			(_, i) => i !== attributeIndex
-		);
+		$formData.variants[variantIndex].attributes = $formData.variants[
+			variantIndex
+		].attributes.filter((_, i) => i !== attributeIndex);
 	}
 </script>
 
@@ -201,7 +207,9 @@
 											</Select.Trigger>
 											<Select.Content>
 												{#each data.currencies as currency}
-													<Select.Item value={currency.code}>{currency.code} - {currency.name}</Select.Item>
+													<Select.Item value={currency.code}
+														>{currency.code} - {currency.name}</Select.Item
+													>
 												{/each}
 											</Select.Content>
 										</Select.Root>
@@ -592,11 +600,7 @@
 						<div class="grid grid-cols-2 gap-3">
 							{#each $formData.variants[activeVariantIndex].images as image, imageIndex}
 								<div class="relative group">
-									<img
-										src={image}
-										alt="Variant"
-										class="w-full h-20 object-cover rounded border"
-									/>
+									<img src={image} alt="Variant" class="w-full h-20 object-cover rounded border" />
 									<button
 										type="button"
 										class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"

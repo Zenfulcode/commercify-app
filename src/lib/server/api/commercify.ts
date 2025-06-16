@@ -1,13 +1,18 @@
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import type {
+	Category,
+	CreateCategoryInput,
 	CreateProductInput,
+	CreateProductVariantInput,
 	Currency,
 	Order,
 	OrderSummary,
 	PaginatedData,
 	Product,
 	ProductVariant,
+	UpdateCategoryInput,
+	UpdateProductInput,
 	UpdateProductVariantInput
 } from '$lib/types';
 import {
@@ -37,7 +42,10 @@ import {
 	type CreateDiscountRequest,
 	type DiscountDTO,
 	type UserLoginResponse,
-	type CreateProductRequest
+	type CreateProductRequest,
+	type CategoryDTO,
+	type CreateCategoryRequest,
+	type UpdateCategoryRequest
 } from './types';
 import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
@@ -64,11 +72,11 @@ export class CommercifyClient {
 	private extractAccessTokenFromCookies(cookies: string): string | undefined {
 		const match = cookies.match(/access_token=([^;]+)/);
 		const token = match ? match[1] : undefined;
-		console.log('Extracting access token from cookies:', {
-			cookies: cookies.substring(0, 100) + '...',
-			foundToken: !!token,
-			tokenStart: token ? token.substring(0, 20) + '...' : 'none'
-		});
+		// console.log('Extracting access token from cookies:', {
+		// 	cookies: cookies.substring(0, 100) + '...',
+		// 	foundToken: !!token,
+		// 	tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+		// });
 		return token;
 	}
 
@@ -475,7 +483,7 @@ export class CommercifyClient {
 			name: input.name,
 			description: input.description || '',
 			currency: input.currency,
-			category_id: input.categoryId,
+			category_id: parseInt(input.categoryId),
 			images: input.images || [],
 			active: input.isActive ?? true,
 			variants:
@@ -488,6 +496,8 @@ export class CommercifyClient {
 					is_default: variant.isDefault
 				})) || []
 		};
+
+		console.log('Api request body:', apiData);
 
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>('/admin/products', {
@@ -547,7 +557,7 @@ export class CommercifyClient {
 	 */
 	async editProduct(
 		productId: string,
-		data: UpdateProductRequest
+		data: UpdateProductInput
 	): Promise<{
 		success: boolean;
 		data?: Product;
@@ -655,7 +665,7 @@ export class CommercifyClient {
 	 */
 	async addProductVariant(
 		productId: string,
-		variantData: CreateVariantRequest
+		variantData: CreateProductVariantInput
 	): Promise<{
 		success: boolean;
 		data?: ProductVariant;
@@ -793,10 +803,20 @@ export class CommercifyClient {
 	 * @param variantId ID of the variant to delete
 	 * @returns True if deletion was successful, false otherwise
 	 */
-	async deleteProductVariant(productId: string, variantId: string): Promise<string> {
+	async deleteProductVariant(
+		productId: string,
+		variantId: string
+	): Promise<{
+		success: boolean;
+		data?: string;
+		error?: string;
+	}> {
 		if (!productId || !variantId) {
 			console.warn('No product or variant ID provided, returning false');
-			return 'No product or variant ID provided';
+			return {
+				success: false,
+				error: 'No product or variant ID provided'
+			};
 		}
 		try {
 			const response = await this.request<ResponseDTO<string>>(
@@ -806,19 +826,28 @@ export class CommercifyClient {
 				}
 			);
 			if (response.success) {
-				return response.data || 'Variant deleted successfully';
+				return {
+					success: true,
+					data: response.data || 'Product variant deleted successfully'
+				};
 			} else {
 				console.error('Failed to delete product variant:', response.error);
-				return response.error || 'Failed to delete product variant';
+				return {
+					success: false,
+					error: response.error || 'Failed to delete product variant'
+				};
 			}
 		} catch (error) {
 			console.error(
 				`Error deleting variant ${variantId} for product ${productId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
-			return `Error deleting variant ${variantId} for product ${productId}: ${
-				error instanceof Error ? error.message : String(error)
-			}`;
+			return {
+				success: false,
+				error: `Error deleting variant ${variantId} for product ${productId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
 		}
 	}
 
@@ -856,10 +885,13 @@ export class CommercifyClient {
 				currency: apiProduct.currency
 			},
 			stock: apiProduct.stock ?? apiProduct.stock ?? 0,
-			categoryId: apiProduct.category_id,
+			categoryId: apiProduct.category_id.toString(),
 			images: apiProduct.images,
 			hasVariants: apiProduct.has_variants,
-			variants: apiProduct.variants?.map(this.mapApiVariantToVariant) || []
+			variants: apiProduct.variants?.map(this.mapApiVariantToVariant) || [],
+			isActive: apiProduct.active,
+			createdAt: apiProduct.created_at,
+			updatedAt: apiProduct.updated_at
 		};
 	}
 
@@ -1446,6 +1478,208 @@ export class CommercifyClient {
 			return {
 				success: false,
 				error: 'Failed to create discount'
+			};
+		}
+	}
+
+	async getCategories(): Promise<{
+		success: boolean;
+		data?: Category[];
+		error?: string;
+	}> {
+		try {
+			const response = await this.request<ListResponseDTO<CategoryDTO>>('/categories');
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to retrieve categories'
+				};
+			}
+
+			const categories = response.data.map((cat) => ({
+				id: cat.id.toString(),
+				name: cat.name,
+				description: cat.description || '',
+				parentId: cat.parent_id || null,
+				createdAt: cat.created_at,
+				updatedAt: cat.updated_at
+			}));
+
+			return {
+				success: true,
+				data: categories
+			};
+		} catch (error) {
+			console.error(
+				'Error fetching categories:',
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: 'Failed to fetch categories'
+			};
+		}
+	}
+
+	async createCategory(input: CreateCategoryInput): Promise<{
+		success: boolean;
+		data?: Category;
+		error?: string;
+	}> {
+		if (!input.name) {
+			console.warn('Category name is required to create a category');
+			return {
+				success: false,
+				error: 'Category name is required to create a category'
+			};
+		}
+		const requestBody: CreateCategoryRequest = {
+			name: input.name,
+			description: input.description || '',
+			parent_id: input.parentId || 0
+		};
+		try {
+			const response = await this.request<ResponseDTO<CategoryDTO>>('/admin/categories', {
+				method: 'POST',
+				body: JSON.stringify(requestBody)
+			});
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to create category'
+				};
+			}
+			return {
+				success: true,
+				data: {
+					id: response.data.id.toString(),
+					name: response.data.name,
+					description: response.data.description || '',
+					parentId: response.data.parent_id || null,
+					createdAt: response.data.created_at,
+					updatedAt: response.data.updated_at
+				}
+			};
+		} catch (error) {
+			console.error(
+				'Error creating category:',
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: 'Failed to create category'
+			};
+		}
+	}
+
+	async updateCategory(
+		categoryId: string,
+		input: UpdateCategoryInput
+	): Promise<{
+		success: boolean;
+		data?: Category;
+		error?: string;
+	}> {
+		if (!categoryId) {
+			console.warn('No category ID provided, returning null');
+			return {
+				success: false,
+				error: 'No category ID provided'
+			};
+		}
+		if (!input || Object.keys(input).length === 0) {
+			console.warn('No category data provided, returning null');
+			return {
+				success: false,
+				error: 'No category data provided'
+			};
+		}
+
+		const data: UpdateCategoryRequest = {
+			name: input.name,
+			description: input.description || '',
+			parent_id: input.parentId || 0
+		};
+
+		try {
+			const response = await this.request<ResponseDTO<CategoryDTO>>(
+				`/admin/categories/${categoryId}`,
+				{
+					method: 'PUT',
+					body: JSON.stringify(data)
+				}
+			);
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to update category'
+				};
+			}
+			return {
+				success: true,
+				data: {
+					id: response.data.id.toString(),
+					name: response.data.name,
+					description: response.data.description || '',
+					parentId: response.data.parent_id || null,
+					createdAt: response.data.created_at,
+					updatedAt: response.data.updated_at
+				}
+			};
+		} catch (error) {
+			console.error(
+				`Error updating category ${categoryId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Error updating category ${categoryId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
+		}
+	}
+
+	async deleteCategory(categoryId: string): Promise<{
+		success: boolean;
+		data?: string;
+		error?: string;
+	}> {
+		if (!categoryId) {
+			console.warn('No category ID provided, returning false');
+			return {
+				success: false,
+				error: 'No category ID provided'
+			};
+		}
+		try {
+			const response = await this.request<ResponseDTO<string>>(`/admin/categories/${categoryId}`, {
+				method: 'DELETE'
+			});
+
+			if (response.success) {
+				return {
+					success: true,
+					data: response.data || 'Category deleted successfully'
+				};
+			} else {
+				console.error('Failed to delete category:', response.error);
+				return {
+					success: false,
+					error: response.error || 'Failed to delete category'
+				};
+			}
+		} catch (error) {
+			console.error(
+				`Error deleting category ${categoryId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Error deleting category ${categoryId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
 			};
 		}
 	}

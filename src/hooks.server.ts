@@ -36,7 +36,6 @@ const handleCommercify: Handle = async ({ event, resolve }) => {
 
 	event.locals.commercify = createCommercifyClient(cookieString);
 
-	console.log('Commercify client initialized with cookies:', cookieString);
 	console.log('Request URL:', event.url.href);
 	console.log('Node environment:', env.NODE_ENV);
 

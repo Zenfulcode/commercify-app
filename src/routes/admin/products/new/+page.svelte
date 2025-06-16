@@ -15,31 +15,41 @@
 	import { generateSKU } from '$lib/utils/admin';
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import type { Category, Currency } from '$lib/types';
+	import { page } from '$app/state';
 
-	let { data }: { data: { form: SuperValidated<ProductSchema>; currencies: any[] } } = $props();
-	const categories = [
-		{ id: '1', name: 'Clothes' },
-		{ id: '2', name: 'Accessories' },
-		{ id: '3', name: 'Electronics' },
-		{ id: '4', name: 'Books' }
-	];
+	let {
+		data
+	}: {
+		data: { form: SuperValidated<ProductSchema>; currencies: Currency[]; categories: Category[] };
+	} = $props();
 
 	const form = superForm(data.form, {
 		dataType: 'json',
 		validators: zodClient(productSchema),
 		onUpdate: ({ form: f }) => {
-			if (f.valid) {
-				toast.success('Product created successfully!');
-			} else {
+			if (!f.valid) {
 				toast.error('Please fix the errors in the form.');
+			}
+
+			console.log('Form updated:', f);
+
+			if (f.message) {
+				toast.error(f.message || 'An unexpected error occurred.');
 			}
 		}
 	});
 
+	if (page.error) {
+		toast.error(page.error.message || 'An unexpected error occurred.');
+	}
+
+	console.log(page.error);
+
 	const { form: formData, enhance, submitting } = form;
 
 	// Reactive variables
-	let selectedCurrency = $state($formData.currency || 'USD');
+	let categories = $state(data.categories);
 
 	// Sheet state for variant configuration
 	let isSheetOpen = $state(false);
@@ -198,7 +208,7 @@
 												{$formData.currency || 'Select Currency'}
 											</Select.Trigger>
 											<Select.Content>
-												{#each data.currencies || [{ code: 'USD', name: 'US Dollar' }, { code: 'EUR', name: 'Euro' }, { code: 'GBP', name: 'British Pound' }] as currency}
+												{#each data.currencies as currency}
 													<Select.Item value={currency.code}
 														>{currency.code} - {currency.name}</Select.Item
 													>
@@ -372,7 +382,7 @@
 										<Form.Field {form} name="variants[{variantIndex}].price">
 											<Form.Control>
 												{#snippet children({ props })}
-													<Form.Label>Price * ({selectedCurrency})</Form.Label>
+													<Form.Label>Price * ({$formData.currency})</Form.Label>
 													<Input
 														{...props}
 														type="number"
@@ -507,7 +517,7 @@
 					<Form.Field {form} name="variants[{activeVariantIndex}].price">
 						<Form.Control>
 							{#snippet children({ props })}
-								<Form.Label>Price ({selectedCurrency})</Form.Label>
+								<Form.Label>Price ({$formData.currency})</Form.Label>
 								<Input
 									{...props}
 									type="number"

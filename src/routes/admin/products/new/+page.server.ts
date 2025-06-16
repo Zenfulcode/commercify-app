@@ -12,18 +12,48 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const form = await superValidate(zod(productSchema));
 
 		// Get available currencies for the form
-		const currencies = await commercify.getCurrencies();
+		const [currencies, categories] = await Promise.all([
+			commercify.getCurrencies(),
+			commercify.getCategories()
+		]);
+		if (!currencies || !categories) {
+			console.error('Failed to fetch currencies or categories');
+			return fail(500, {
+				form,
+				message: 'Failed to load currencies or categories. Please try again later.'
+			});
+		}
+
+		if (!currencies.success) {
+			console.error('Failed to fetch currencies:', currencies.error);
+			return fail(500, {
+				form,
+				message: 'Failed to load currencies. Please try again later.'
+			});
+		}
+
+		if (!categories.success) {
+			console.error('Failed to fetch categories:', categories.error);
+			return fail(500, {
+				form,
+				message: 'Failed to load categories. Please try again later.'
+			});
+		}
+
+		form.data.currency = currencies.data!.items.find((currency) => currency.isDefault)!.code;
 
 		return {
 			form,
-			currencies: currencies.success ? currencies.data : []
+			currencies: currencies.success ? currencies.data?.items : [],
+			categories: categories.success ? categories.data : []
 		};
 	} catch (error) {
 		console.error('Error loading new product page:', error);
 		const form = await superValidate(zod(productSchema));
 		return {
 			form,
-			currencies: []
+			currencies: [],
+			categories: []
 		};
 	}
 };
@@ -37,31 +67,17 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		try {
-			// Convert categoryId to number for the API
-			const productData = {
-				...form.data,
-				categoryId: parseInt(form.data.categoryId)
-			};
+		console.log('Creating product with data:', form.data);
+		const result = await commercify.createProduct(form.data);
 
-			console.log('Creating product with data:', productData);
-			const result = await commercify.createProduct(productData);
-
-			if (!result.success || !result.data) {
-				return fail(400, {
-					form,
-					message: result.error || 'Failed to create product'
-				});
-			}
-
-			console.log('Product created successfully:', result.data);
-			redirect(303, `/admin/products/${result.data.id}`);
-		} catch (error) {
-			console.error('Error creating product:', error);
-			return fail(500, {
+		if (!result.success || !result.data) {
+			return fail(400, {
 				form,
-				message: 'Internal server error. Please try again.'
+				message: result.error || 'Failed to create product'
 			});
 		}
+
+		console.log('Product created successfully:', result.data);
+		throw redirect(303, `/admin/products/${result.data.id.toString()}`);
 	}
 };

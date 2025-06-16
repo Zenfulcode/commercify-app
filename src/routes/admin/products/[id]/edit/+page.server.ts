@@ -2,15 +2,20 @@ import type { Actions } from '@sveltejs/kit';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { productSchema } from '$lib/schemas/product.schema';
+import {
+	productSchema,
+	productVariantSchema,
+	updateProductSchema
+} from '$lib/schemas/product.schema';
 
-export const load = async ({ params, locals }: { params: any; locals: any }) => {
+export const load = async ({ params, locals }) => {
 	const productId = params.id;
+	const { commercify } = locals;
 
 	try {
 		// Get the existing product data
-		const productResponse = await locals.commercify.getProduct(productId);
-		
+		const productResponse = await commercify.getProduct(productId);
+
 		if (!productResponse.success || !productResponse.data) {
 			return fail(404, { error: 'Product not found' });
 		}
@@ -21,7 +26,7 @@ export const load = async ({ params, locals }: { params: any; locals: any }) => 
 		const formData = {
 			name: product.name,
 			description: product.description || '',
-			currency: product.currency,
+			currency: product.price.currency,
 			categoryId: product.categoryId,
 			images: product.images || [],
 			isActive: product.isActive ?? true,
@@ -30,25 +35,52 @@ export const load = async ({ params, locals }: { params: any; locals: any }) => 
 				price: variant.price,
 				stock: variant.stock || 0,
 				weight: variant.weight,
-				attributes: variant.attributes?.map((attr: any) => ({ 
-					name: attr.name, 
-					value: attr.value 
-				})) || [],
+				attributes:
+					variant.attributes?.map((attr: any) => ({
+						name: attr.name,
+						value: attr.value
+					})) || [],
 				images: variant.images || [],
 				isDefault: variant.isDefault ?? false
 			}))
 		};
 
-		// Get currencies for the form
-		const currenciesResponse = await locals.commercify.getCurrencies();
-		const currencies = currenciesResponse.success ? currenciesResponse.data?.data || [] : [];
-
 		// Initialize the form with existing product data
 		const form = await superValidate(formData, zod(productSchema));
 
+		// Get currencies for the form
+		const [currenciesResult, categoriesResult] = await Promise.all([
+			commercify.getCurrencies(),
+			commercify.getCategories()
+		]);
+		if (!currenciesResult || !categoriesResult) {
+			console.error('Failed to fetch currencies or categories');
+			return fail(500, {
+				form,
+				message: 'Failed to load currencies or categories. Please try again later.'
+			});
+		}
+
+		if (!currenciesResult.success) {
+			console.error('Failed to fetch currencies:', currenciesResult.error);
+			return fail(500, {
+				form,
+				message: 'Failed to load currencies. Please try again later.'
+			});
+		}
+
+		if (!categoriesResult.success) {
+			console.error('Failed to fetch categories:', categoriesResult.error);
+			return fail(500, {
+				form,
+				message: 'Failed to load categories. Please try again later.'
+			});
+		}
+
 		return {
 			form,
-			currencies,
+			currencies: currenciesResult.data?.items || [],
+			categories: categoriesResult.data || [],
 			product: productResponse.data,
 			productId
 		};
@@ -59,51 +91,81 @@ export const load = async ({ params, locals }: { params: any; locals: any }) => 
 };
 
 export const actions: Actions = {
-	default: async ({ request, params, locals }: { request: any; params: any; locals: any }) => {
+	default: async ({ request, params, locals }) => {
 		const productId = params.id;
-		const form = await superValidate(request, zod(productSchema));
+		if (!productId) {
+			return fail(400, { error: 'Product ID is required' });
+		}
+
+		const { commercify } = locals;
+		const form = await superValidate(request, zod(updateProductSchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
-		try {
-			console.log('Updating product with data:', form.data);
+		console.log('Updating product with data:', form.data);
 
-			const result = await locals.commercify.editProduct(productId, {
-				name: form.data.name,
-				description: form.data.description,
-				currency: form.data.currency,
-				category_id: Number(form.data.categoryId),
-				images: form.data.images,
-				is_active: form.data.isActive,
-				variants: (form.data.variants as any[]).map((variant: any) => ({
-					sku: variant.sku,
-					price: variant.price,
-					stock: variant.stock,
-					weight: variant.weight || undefined,
-					attributes: variant.attributes,
-					images: variant.images,
-					is_default: variant.isDefault
-				}))
-			});
+		const result = await commercify.editProduct(productId, form.data);
 
-			if (!result.success) {
-				console.error('Error updating product:', result.error);
-				return fail(400, {
-					form,
-					error: result.error || 'Failed to update product'
-				});
-			}
-
-			console.log('Product updated successfully:', result.data);
-			redirect(303, '/admin/products');
-		} catch (error) {
-			console.error('Error updating product:', error);
-			return fail(500, {
+		if (!result.success) {
+			console.error('Error updating product:', result.error);
+			return fail(400, {
 				form,
-				error: 'An unexpected error occurred while updating the product'
+				error: result.error || 'Failed to update product'
 			});
 		}
+
+		console.log('Product updated successfully:', result.data);
+		redirect(303, '/admin/products');
+	},
+	removeVariant: async ({ request, params, locals }) => {
+		const productId = params.id;
+		if (!productId) {
+			return fail(400, { error: 'Product ID is required' });
+		}
+		const { commercify } = locals;
+		const formData = await request.formData();
+		const variantId = formData.get('variantId') as string;
+		if (!variantId) {
+			return fail(400, { error: 'Variant ID is required' });
+		}
+		try {
+			const result = await commercify.deleteProductVariant(productId, variantId);
+			if (!result.success) {
+				console.error('Error removing product variant:', result.error);
+				return fail(400, {
+					error: result.error || 'Failed to remove product variant'
+				});
+			}
+			console.log('Product variant removed successfully:', result.data);
+			redirect(303, `/admin/products/${productId}/edit`);
+		} catch (error) {
+			console.error('Error removing product variant:', error);
+			return fail(500, { error: 'Failed to remove product variant' });
+		}
+	},
+	addVariant: async ({ request, params, locals }) => {
+		const productId = params.id;
+		if (!productId) {
+			return fail(400, { error: 'Product ID is required' });
+		}
+		const { commercify } = locals;
+		const form = await superValidate(request, zod(productVariantSchema));
+		if (!form.valid) {
+			return fail(400, { form });
+		}
+		console.log('Adding product variant with data:', form.data);
+
+		const result = await commercify.addProductVariant(productId, form.data);
+		if (!result.success) {
+			console.error('Error adding product variant:', result.error);
+			return fail(400, {
+				form,
+				error: result.error || 'Failed to add product variant'
+			});
+		}
+		console.log('Product variant added successfully:', result.data);
+		redirect(303, `/admin/products/${productId}/edit`);
 	}
 };
