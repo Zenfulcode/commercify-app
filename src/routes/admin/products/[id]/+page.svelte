@@ -228,7 +228,7 @@
 						<div class="flex justify-between">
 							<span class="text-sm text-muted-foreground">Total Stock</span>
 							<span class="text-sm font-medium">
-								{product.variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0)}
+								{product.stock}
 							</span>
 						</div>
 						<div class="flex justify-between">

@@ -481,6 +481,62 @@ export class CommercifyClient {
 		}
 	}
 
+	async getProducts(
+		params: {
+			search?: string;
+			category?: string;
+			page?: number;
+			page_size?: number;
+			currency?: string;
+		} = {}
+	): Promise<{
+		success: boolean;
+		data?: PaginatedData<Product>;
+		error?: string;
+	}> {
+		const searchParams = new URLSearchParams();
+
+		if (params.search) searchParams.append('search', params.search);
+		if (params.category) searchParams.append('category', params.category);
+		if (params.page) searchParams.append('page', params.page.toString());
+		if (params.page_size) searchParams.append('page_size', params.page_size.toString());
+		if (params.currency) searchParams.append('currency', params.currency);
+
+		const endpoint = `/admin/products?${searchParams.toString()}`;
+
+		try {
+			const response = await this.request<ListResponseDTO<ProductDTO>>(endpoint);
+
+			if (response.error || !response.data) {
+				console.warn('No products found in response, returning empty array');
+				return {
+					error: response.error || 'No products found',
+					success: false
+				};
+			}
+
+			const products = response.data.map(this.mapApiProductToProduct);
+
+			if (products.length === 0) {
+				console.warn('No products found, returning empty array');
+			}
+
+			return {
+				success: true,
+				data: {
+					items: products,
+					pagination: this.mapPaginationData(response.pagination)
+				}
+			};
+		} catch (error) {
+			console.error('Error loading products:', error);
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error)
+			};
+		}
+	}
+
 	/**
 	 * Create a new product
 	 * @param input Product creation data
@@ -923,7 +979,7 @@ export class CommercifyClient {
 				amount: apiProduct.price,
 				currency: apiProduct.currency
 			},
-			stock: apiProduct.stock ?? apiProduct.stock ?? 0,
+			stock: apiProduct.stock,
 			categoryId: apiProduct.category_id.toString(),
 			images: apiProduct.images,
 			hasVariants: apiProduct.has_variants,

@@ -24,22 +24,10 @@
 		DropdownMenuTrigger
 	} from '$lib/components/ui/dropdown-menu';
 	import { Package, Plus, Search, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-svelte';
+	import { formatCurrency, getStockStatus } from '$lib';
 
 	let { data } = $props();
 	let searchQuery = $state('');
-
-	function formatPrice(price: number, currency: string = 'USD') {
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: currency
-		}).format(price);
-	}
-
-	function getStockStatus(stock: number) {
-		if (stock === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' };
-		if (stock < 10) return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' };
-		return { text: 'In Stock', class: 'bg-green-100 text-green-800' };
-	}
 </script>
 
 <div class="space-y-6">
@@ -118,7 +106,7 @@
 									{product.sku || 'N/A'}
 								</TableCell>
 								<TableCell>
-									{formatPrice(product.price.amount, product.price.currency)}
+									{formatCurrency(product.price)}
 									<!-- {#if product.compare_price && product.compare_price > product.price.amount}
 										<p class="text-xs text-muted-foreground line-through">
 											{formatPrice(product.compare_price, product.price.currency)}
@@ -130,7 +118,7 @@
 								</TableCell>
 								<TableCell>
 									<Badge class={stockStatus.class}>
-										{stockStatus.text}
+										{stockStatus.label}
 									</Badge>
 								</TableCell>
 								<TableCell class="text-right">
