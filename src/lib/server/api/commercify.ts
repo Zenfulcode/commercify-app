@@ -45,7 +45,8 @@ import {
 	type CreateProductRequest,
 	type CategoryDTO,
 	type CreateCategoryRequest,
-	type UpdateCategoryRequest
+	type UpdateCategoryRequest,
+	type UserDTO
 } from './types';
 import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
@@ -151,7 +152,7 @@ export class CommercifyClient {
 		}
 	}
 
-	async sigIn(
+	async signIn(
 		email: string,
 		password: string
 	): Promise<{
@@ -190,6 +191,44 @@ export class CommercifyClient {
 			};
 		} catch (error) {
 			console.error('Error during sign in:', error);
+			return { success: false, error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	async getUser(): Promise<{
+		success: boolean;
+		data?: CommercifyUser;
+		error?: string;
+	}> {
+		if (!this.accessToken) {
+			console.warn('No access token available for validation');
+			return { success: false, error: 'No access token provided' };
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<UserDTO>>('/users/me', {
+				method: 'GET'
+			});
+
+			if (!response.success || !response.data) {
+				console.error('Access token validation failed:', response.error);
+				return { success: false, error: response.error || 'Access token validation failed' };
+			}
+
+			return {
+				success: true,
+				data: {
+					id: response.data.id.toString(),
+					email: response.data.email,
+					firstName: response.data.first_name,
+					lastName: response.data.last_name,
+					role: response.data.role as 'admin' | 'user',
+					createdAt: response.data.created_at,
+					updatedAt: response.data.updated_at
+				}
+			};
+		} catch (error) {
+			console.error('Error validating access token:', error);
 			return { success: false, error: error instanceof Error ? error.message : String(error) };
 		}
 	}

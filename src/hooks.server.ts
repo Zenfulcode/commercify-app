@@ -10,16 +10,43 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		const accessToken = event.cookies.get('access_token');
 		const userRole = event.cookies.get('user_role');
 
-		// If not authenticated or not admin, redirect to login
-		if (!accessToken || userRole !== 'admin') {
+		// If no access token, redirect to login immediately
+		if (!accessToken) {
 			throw redirect(303, '/login');
 		}
 
-		// Add user info to locals for use in admin pages
+		// Create commercify client to validate the token
+		const cookieString = event.cookies
+			.getAll()
+			.map((cookie) => `${cookie.name}=${cookie.value}`)
+			.join('; ');
+
+		const commercifyClient = createCommercifyClient(cookieString);
+
+		// Validate the access token by calling getUser()
+		const userResponse = await commercifyClient.getUser();
+
+		if (!userResponse.success || !userResponse.data) {
+			console.log('Access token validation failed:', userResponse.error);
+
+			// Clear all auth-related cookies since token is invalid
+			event.cookies.delete('access_token', { path: '/' });
+			event.cookies.delete('user_role', { path: '/' });
+
+			throw redirect(303, '/login');
+		}
+
+		// Verify user has admin role (from validated user data)
+		if (userResponse.data.role !== 'admin') {
+			console.log('User does not have admin role:', userResponse.data.role);
+			throw redirect(303, '/login');
+		}
+
+		// Add validated user info to locals for use in admin pages
 		event.locals.user = {
-			email: event.cookies.get('user_email'),
-			name: event.cookies.get('user_name'),
-			role: userRole as 'admin',
+			email: userResponse.data.email,
+			name: `${userResponse.data.firstName} ${userResponse.data.lastName}`,
+			role: userResponse.data.role as 'admin',
 			accessToken
 		};
 	}

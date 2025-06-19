@@ -1,15 +1,13 @@
-import type { Actions } from './$types';
 import { redirect } from '@sveltejs/kit';
+import type { Actions } from './$types';
 
 export const actions: Actions = {
 	default: async ({ cookies }) => {
-		// Clear authentication cookies
+		// Clear all authentication cookies
 		cookies.delete('access_token', { path: '/' });
 		cookies.delete('user_role', { path: '/' });
-		cookies.delete('user_email', { path: '/' });
-		cookies.delete('user_name', { path: '/' });
 
 		// Redirect to login page
-		redirect(303, '/login');
+		throw redirect(303, '/login');
 	}
 };

@@ -2,24 +2,19 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table';
 	import { ArrowLeft, Edit, Eye, Package } from 'lucide-svelte';
+	import { formatCurrency, getStockStatus } from '$lib';
 
 	let { data } = $props();
-	const product = data.product;
-
-	function formatPrice(price: number, currency: string = 'USD') {
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: currency
-		}).format(price);
-	}
-
-	function getStockStatus(stock: number) {
-		if (stock === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' };
-		if (stock < 10) return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' };
-		return { text: 'In Stock', class: 'bg-green-100 text-green-800' };
-	}
+	const product = data.product!;
 </script>
 
 <svelte:head>
@@ -71,7 +66,7 @@
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<h3 class="font-medium text-sm text-muted-foreground">Currency</h3>
-							<p class="text-sm">{product.currency}</p>
+							<p class="text-sm">{product.price.currency}</p>
 						</div>
 						<div>
 							<h3 class="font-medium text-sm text-muted-foreground">Category ID</h3>
@@ -131,12 +126,12 @@
 							{#each product.variants as variant}
 								<TableRow>
 									<TableCell class="font-medium">{variant.sku}</TableCell>
-									<TableCell>{formatPrice(variant.price, product.currency)}</TableCell>
+									<TableCell>{formatCurrency(variant.price)}</TableCell>
 									<TableCell>{variant.stock || 0}</TableCell>
 									<TableCell>{variant.weight ? `${variant.weight} kg` : '-'}</TableCell>
 									<TableCell>
 										{@const status = getStockStatus(variant.stock || 0)}
-										<Badge class={status.class}>{status.text}</Badge>
+										<Badge class={status.class}>{status.label}</Badge>
 									</TableCell>
 									<TableCell>
 										{#if variant.isDefault}
@@ -207,7 +202,12 @@
 						<Edit class="h-4 w-4 mr-2" />
 						Edit Product
 					</Button>
-					<Button variant="outline" class="w-full" href="/shop/products/{product.id}" target="_blank">
+					<Button
+						variant="outline"
+						class="w-full"
+						href="/shop/products/{product.id}"
+						target="_blank"
+					>
 						<Eye class="h-4 w-4 mr-2" />
 						View in Store
 					</Button>
@@ -235,16 +235,22 @@
 							<span class="text-sm text-muted-foreground">Price Range</span>
 							<span class="text-sm font-medium">
 								{#if product.variants.length > 1}
-									{@const prices = product.variants.map((v: any) => v.price)}
+									{@const prices = product.variants.map((v: any) => v.price.amount)}
 									{@const minPrice = Math.min(...prices)}
 									{@const maxPrice = Math.max(...prices)}
 									{#if minPrice === maxPrice}
-										{formatPrice(minPrice, product.currency)}
+										{formatCurrency(product.price)}
 									{:else}
-										{formatPrice(minPrice, product.currency)} - {formatPrice(maxPrice, product.currency)}
+										{formatCurrency({
+											amount: minPrice,
+											currency: product.price.currency
+										})} - {formatCurrency({
+											amount: maxPrice,
+											currency: product.price.currency
+										})}
 									{/if}
 								{:else}
-									{formatPrice(product.variants[0].price, product.currency)}
+									{formatCurrency(product.variants[0].price)}
 								{/if}
 							</span>
 						</div>
