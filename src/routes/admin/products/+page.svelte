@@ -77,7 +77,7 @@
 					</TableHeader>
 					<TableBody>
 						{#each data.products as product}
-							{@const stockStatus = getStockStatus(product.stock || 0)}
+							{@const stockStatus = getStockStatus(product.stock)}
 							<TableRow>
 								<TableCell class="font-medium">
 									<div class="flex items-center gap-3">
