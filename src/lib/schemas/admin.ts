@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+// Category schema
+export const categorySchema = z.object({
+	name: z.string().min(1, 'Category name is required').max(100, 'Category name must be 100 characters or less'),
+	description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+	parentId: z.number().int().min(1).optional().nullable()
+});
+
 // Discount schema
 export const discountSchema = z.object({
 	code: z
@@ -30,5 +37,6 @@ export const currencySchema = z.object({
 });
 
 // Type exports for use in components
+export type CategoryValidation = z.infer<typeof categorySchema>;
 export type DiscountValidation = z.infer<typeof discountSchema>;
 export type CurrencyValidation = z.infer<typeof currencySchema>;

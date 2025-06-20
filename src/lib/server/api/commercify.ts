@@ -1631,9 +1631,16 @@ export class CommercifyClient {
 		}
 		const requestBody: CreateCategoryRequest = {
 			name: input.name,
-			description: input.description || '',
-			parent_id: input.parentId || 0
+			description: input.description || ''
 		};
+
+		if (input.parentId) {
+			requestBody.parent_id = input.parentId;
+		}
+
+		console.log('Creating category with input:', input);
+		console.log('Creating category with data:', requestBody);
+
 		try {
 			const response = await this.request<ResponseDTO<CategoryDTO>>('/admin/categories', {
 				method: 'POST',
