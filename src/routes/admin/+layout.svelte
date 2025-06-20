@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { cn } from '$lib/utils';
 	import { enhance } from '$app/forms';
 	import {
 		ShoppingBag,
@@ -10,125 +9,193 @@
 		DollarSign,
 		BarChart3,
 		Settings,
-		Menu,
-		X,
 		LogOut,
-		User
+		User,
+		Tags,
+		Warehouse,
+		List,
+		Plus,
+		Receipt
 	} from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Sidebar from '$lib/components/ui/sidebar';
 
 	let { children, data } = $props();
-	let sidebarOpen = $state(false);
 
 	const navigation = [
-		{ name: 'Dashboard', href: '/admin', icon: BarChart3 },
-		{ name: 'Products', href: '/admin/products', icon: Package },
-		{ name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
-		{ name: 'Discounts', href: '/admin/discounts', icon: Percent },
-		{ name: 'Shipping', href: '/admin/shipping', icon: Truck },
-		{ name: 'Currencies', href: '/admin/currencies', icon: DollarSign },
-		{ name: 'Settings', href: '/admin/settings', icon: Settings }
+		{
+			name: 'Dashboard',
+			href: '/admin',
+			icon: BarChart3
+		}
+	];
+
+	const navigationGroups = [
+		{
+			name: 'Products',
+			icon: Package,
+			items: [
+				{ name: 'All Products', href: '/admin/products', icon: List },
+				{ name: 'Categories', href: '/admin/products/categories', icon: Tags },
+				{ name: 'Add Product', href: '/admin/products/new', icon: Plus }
+				// { name: 'Inventory', href: '/admin/products/inventory', icon: Warehouse }
+			]
+		},
+		{
+			name: 'Sales',
+			icon: ShoppingBag,
+			items: [
+				{ name: 'Orders', href: '/admin/orders', icon: Receipt },
+				{ name: 'Discounts', href: '/admin/discounts', icon: Percent }
+			]
+		},
+		{
+			name: 'Configuration',
+			icon: Settings,
+			items: [
+				{ name: 'Shipping', href: '/admin/shipping', icon: Truck },
+				{ name: 'Currencies', href: '/admin/currencies', icon: DollarSign },
+				{ name: 'Settings', href: '/admin/settings', icon: Settings }
+			]
+		}
 	];
 
 	function isCurrentPath(href: string): boolean {
+		const currentPath = page.url.pathname;
+
+		// Special case for admin dashboard root
 		if (href === '/admin') {
-			return page.url.pathname === '/admin';
+			return currentPath === '/admin';
 		}
-		return page.url.pathname.startsWith(href);
+
+		// For more precise matching, we'll only highlight the most specific match
+		// This prevents both "/admin/products" and "/admin/products/categories" from being active
+
+		// Check for exact match first
+		if (currentPath === href) {
+			return true;
+		}
+
+		// For parent routes, only highlight if we're on a direct child page
+		// For example: "/admin/products" should only be active on "/admin/products" or "/admin/products/new"
+		// but not on "/admin/products/categories" or "/admin/products/categories/new"
+
+		// if (currentPath.startsWith(href + '/')) {
+		// 	// Split the remaining path after the href
+		// 	const remainingPath = currentPath.substring(href.length + 1);
+		// 	// Only highlight if there's exactly one more segment (direct child)
+		// 	// or if we're on a direct action like "new", "edit", etc.
+		// 	const segments = remainingPath.split('/').filter(Boolean);
+
+		// 	// Special case: allow "new" and similar action pages to highlight parent
+		// 	if (segments.length === 1 && ['new', 'create', 'add'].includes(segments[0])) {
+		// 		return true;
+		// 	}
+
+		// 	// Don't highlight parent if we're deeper in the hierarchy
+		// 	return false;
+		// }
+
+		return false;
 	}
 </script>
 
-<div class="flex h-screen bg-background">
-	<!-- Mobile sidebar backdrop -->
-	{#if sidebarOpen}
-		<div
-			class="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden"
-			onclick={() => (sidebarOpen = false)}
-		></div>
-	{/if}
+<Sidebar.Provider>
+	<Sidebar.Sidebar variant="inset">
+		<Sidebar.SidebarHeader>
+			<h1 class="text-xl font-bold px-2">Admin Panel</h1>
+		</Sidebar.SidebarHeader>
 
-	<!-- Sidebar -->
-	<div
-		class={cn(
-			'fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
-			sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-		)}
-	>
-		<div class="flex items-center justify-between h-16 px-6 border-b">
-			<h1 class="text-xl font-bold text-foreground">Admin Panel</h1>
-			<Button variant="ghost" size="sm" class="lg:hidden" onclick={() => (sidebarOpen = false)}>
-				<X class="h-5 w-5" />
-			</Button>
-		</div>
+		<Sidebar.SidebarContent>
+			<!-- Dashboard -->
+			<Sidebar.SidebarGroup>
+				<Sidebar.SidebarMenu>
+					{#each navigation as item}
+						<Sidebar.SidebarMenuItem>
+							<a href={item.href} class="block">
+								<Sidebar.SidebarMenuButton isActive={isCurrentPath(item.href)}>
+									<item.icon />
+									<span>{item.name}</span>
+								</Sidebar.SidebarMenuButton>
+							</a>
+						</Sidebar.SidebarMenuItem>
+					{/each}
+				</Sidebar.SidebarMenu>
+			</Sidebar.SidebarGroup>
 
-		<nav class="mt-8 px-4">
-			<ul class="space-y-2">
-				{#each navigation as item}
-					<li>
-						<a
-							href={item.href}
-							class={cn(
-								'flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors',
-								isCurrentPath(item.href)
-									? 'bg-primary text-primary-foreground'
-									: 'text-muted-foreground hover:text-foreground hover:bg-accent'
-							)}
-						>
-							<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
-							{item.name}
-						</a>
-					</li>
-				{/each}
-			</ul>
-		</nav>
-	</div>
+			<!-- Navigation Groups -->
+			{#each navigationGroups as group}
+				<Sidebar.SidebarGroup>
+					<Sidebar.SidebarGroupLabel class="flex items-center gap-2">
+						<group.icon class="h-4 w-4" />
+						{group.name}
+					</Sidebar.SidebarGroupLabel>
+					<Sidebar.SidebarGroupContent>
+						<Sidebar.SidebarMenu>
+							{#each group.items as item}
+								<Sidebar.SidebarMenuItem>
+									<a href={item.href} class="block">
+										<Sidebar.SidebarMenuButton isActive={isCurrentPath(item.href)}>
+											<item.icon />
+											<span>{item.name}</span>
+										</Sidebar.SidebarMenuButton>
+									</a>
+								</Sidebar.SidebarMenuItem>
+							{/each}
+						</Sidebar.SidebarMenu>
+					</Sidebar.SidebarGroupContent>
+				</Sidebar.SidebarGroup>
+			{/each}
+		</Sidebar.SidebarContent>
 
-	<!-- Main content -->
-	<div class="flex flex-col flex-1 overflow-hidden">
-		<!-- Top navigation -->
-		<header class="flex items-center justify-between h-16 px-6 bg-card border-b lg:px-8">
-			<Button variant="ghost" size="sm" class="lg:hidden" onclick={() => (sidebarOpen = true)}>
-				<Menu class="h-5 w-5" />
-			</Button>
+		<Sidebar.SidebarFooter>
+			<Sidebar.SidebarMenu>
+				<Sidebar.SidebarMenuItem>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger>
+							<Sidebar.SidebarMenuButton size="lg">
+								<User class="h-4 w-4" />
+								<div class="flex flex-col items-start text-sm">
+									<span class="font-medium">{data?.user?.name || 'Admin'}</span>
+									<span class="text-xs text-muted-foreground truncate">
+										{data?.user?.email || 'admin@example.com'}
+									</span>
+								</div>
+							</Sidebar.SidebarMenuButton>
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content side="top" align="start" class="w-48">
+							<DropdownMenu.Label>
+								<div class="flex flex-col space-y-1">
+									<p class="text-sm font-medium">{data?.user?.name || 'Admin'}</p>
+									<p class="text-xs text-muted-foreground">{data?.user?.email}</p>
+								</div>
+							</DropdownMenu.Label>
+							<DropdownMenu.Separator />
+							<form method="POST" action="/logout" use:enhance>
+								<button type="submit" class="w-full">
+									<DropdownMenu.Item class="w-full flex items-center">
+										<LogOut class="h-4 w-4 mr-2" />
+										Logout
+									</DropdownMenu.Item>
+								</button>
+							</form>
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+				</Sidebar.SidebarMenuItem>
+			</Sidebar.SidebarMenu>
+		</Sidebar.SidebarFooter>
+	</Sidebar.Sidebar>
 
-			<div class="flex items-center space-x-4">
+	<Sidebar.SidebarInset>
+		<header class="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+			<Sidebar.SidebarTrigger class="-ml-1" />
+			<div class="ml-auto flex items-center space-x-4">
 				<span class="text-sm text-muted-foreground">Welcome to Admin Dashboard</span>
-
-				<!-- User dropdown menu -->
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
-						<Button variant="ghost" size="sm" class="flex items-center space-x-2">
-							<User class="h-4 w-4" />
-							<span class="hidden sm:inline"
-								>{data?.user?.name || data?.user?.email || 'Admin'}</span
-							>
-						</Button>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end" class="w-48">
-						<DropdownMenu.Label>
-							<div class="flex flex-col space-y-1">
-								<p class="text-sm font-medium">{data?.user?.name || 'Admin'}</p>
-								<p class="text-xs text-muted-foreground">{data?.user?.email}</p>
-							</div>
-						</DropdownMenu.Label>
-						<DropdownMenu.Separator />
-						<form method="POST" action="/logout" use:enhance>
-							<button type="submit" class="w-full">
-								<DropdownMenu.Item class="w-full flex items-center">
-									<LogOut class="h-4 w-4 mr-2" />
-									Logout
-								</DropdownMenu.Item>
-							</button>
-						</form>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
 			</div>
 		</header>
 
-		<!-- Page content -->
-		<main class="flex-1 overflow-auto p-6 lg:p-8">
+		<main class="flex-1 overflow-auto p-6">
 			{@render children()}
 		</main>
-	</div>
-</div>
+	</Sidebar.SidebarInset>
+</Sidebar.Provider>
