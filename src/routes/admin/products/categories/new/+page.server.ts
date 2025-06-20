@@ -30,7 +30,7 @@ export const actions: Actions = {
 		const result = await commercify.createCategory({
 			name: form.data.name,
 			description: form.data.description || '',
-			parentId: form.data.parentId
+			parentId: form.data.parentId || null
 		});
 
 		if (!result.success) {

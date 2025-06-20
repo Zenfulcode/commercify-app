@@ -233,7 +233,7 @@
 											</Select.Trigger>
 											<Select.Content>
 												{#each categories as category}
-													<Select.Item value={`${category.id}`}>{category.name}</Select.Item>
+													<Select.Item value={category.id}>{category.name}</Select.Item>
 												{/each}
 											</Select.Content>
 										</Select.Root>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
-	import { categorySchema } from '$lib/schemas/admin';
+	import { updateCategorySchema } from '$lib/schemas/admin';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -19,21 +19,10 @@
 	let { data } = $props();
 
 	const form = superForm(data.form, {
-		validators: zodClient(categorySchema)
+		validators: zodClient(updateCategorySchema)
 	});
 
 	const { form: formData, enhance } = form;
-
-	// Handle parent category selection
-	let selectedParentId = $state<string>(data.category.parentId?.toString() || '');
-
-	$effect(() => {
-		if (selectedParentId && selectedParentId !== '') {
-			$formData.parentId = parseInt(selectedParentId);
-		} else {
-			$formData.parentId = null;
-		}
-	});
 </script>
 
 <svelte:head>
@@ -88,10 +77,10 @@
 					<Form.Control>
 						{#snippet children({ props })}
 							<Form.Label>Parent Category</Form.Label>
-							<Select.Root type="single" bind:value={selectedParentId}>
+							<Select.Root type="single" bind:value={$formData.parentId} name={props.name}>
 								<Select.Trigger {...props}>
-									{selectedParentId
-										? data.categories.find((c) => c.id === selectedParentId)?.name
+									{$formData.parentId
+										? data.categories.find((c) => c.id === $formData.parentId)?.name
 										: 'Select a parent category (optional)'}
 								</Select.Trigger>
 								<Select.Content>

@@ -1596,7 +1596,7 @@ export class CommercifyClient {
 				id: cat.id.toString(),
 				name: cat.name,
 				description: cat.description || '',
-				parentId: cat.parent_id || null,
+				parentId: cat.parent_id?.toString() || null,
 				createdAt: cat.created_at,
 				updatedAt: cat.updated_at
 			}));
@@ -1635,11 +1635,8 @@ export class CommercifyClient {
 		};
 
 		if (input.parentId) {
-			requestBody.parent_id = input.parentId;
+			requestBody.parent_id = parseInt(input.parentId);
 		}
-
-		console.log('Creating category with input:', input);
-		console.log('Creating category with data:', requestBody);
 
 		try {
 			const response = await this.request<ResponseDTO<CategoryDTO>>('/admin/categories', {
@@ -1657,8 +1654,8 @@ export class CommercifyClient {
 				data: {
 					id: response.data.id.toString(),
 					name: response.data.name,
-					description: response.data.description || '',
-					parentId: response.data.parent_id || null,
+					description: response.data.description,
+					parentId: response.data.parent_id?.toString() || null,
 					createdAt: response.data.created_at,
 					updatedAt: response.data.updated_at
 				}
@@ -1700,9 +1697,12 @@ export class CommercifyClient {
 
 		const data: UpdateCategoryRequest = {
 			name: input.name,
-			description: input.description || '',
-			parent_id: input.parentId || 0
+			description: input.description || ''
 		};
+
+		if (input.parentId) {
+			data.parent_id = parseInt(input.parentId);
+		}
 
 		try {
 			const response = await this.request<ResponseDTO<CategoryDTO>>(
@@ -1724,7 +1724,7 @@ export class CommercifyClient {
 					id: response.data.id.toString(),
 					name: response.data.name,
 					description: response.data.description || '',
-					parentId: response.data.parent_id || null,
+					parentId: response.data.parent_id?.toString() || null,
 					createdAt: response.data.created_at,
 					updatedAt: response.data.updated_at
 				}

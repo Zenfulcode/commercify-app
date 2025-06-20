@@ -86,7 +86,7 @@ export interface Category {
 	id: string;
 	name: string;
 	description?: string;
-	parentId?: number | null;
+	parentId: string | null;
 	createdAt: string | null;
 	updatedAt: string | null;
 }
@@ -94,11 +94,11 @@ export interface Category {
 export interface CreateCategoryInput {
 	name: string;
 	description?: string;
-	parentId?: number | null;
+	parentId?: string | null;
 }
 
 export interface UpdateCategoryInput {
 	name?: string;
 	description?: string;
-	parentId?: number | null;
+	parentId?: string | null;
 }

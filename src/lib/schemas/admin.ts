@@ -2,10 +2,28 @@ import { z } from 'zod';
 
 // Category schema
 export const categorySchema = z.object({
-	name: z.string().min(1, 'Category name is required').max(100, 'Category name must be 100 characters or less'),
-	description: z.string().max(500, 'Description must be 500 characters or less').optional(),
-	parentId: z.number().int().min(1).optional().nullable()
+	name: z
+		.string()
+		.min(1, 'Category name is required')
+		.max(100, 'Category name must be 100 characters or less'),
+	description: z.string().max(500, 'Description must be 500 characters or less'),
+	parentId: z.string().optional()
 });
+
+export const updateCategorySchema = categorySchema
+	.extend({
+		name: z
+			.string()
+			.min(1, 'Category name is required')
+			.max(100, 'Category name must be 100 characters or less'),
+		description: z.string().max(500, 'Description must be 500 characters or less').optional(),
+		parentId: z.string()
+	})
+	.partial()
+	.refine((data) => {
+		// Ensure at least one field is provided for update
+		return data.name || data.description || data.parentId !== undefined;
+	});
 
 // Discount schema
 export const discountSchema = z.object({

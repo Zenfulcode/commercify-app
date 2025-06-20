@@ -3,7 +3,13 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { categorySchema } from '$lib/schemas/admin';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Form from '$lib/components/ui/form';
@@ -17,17 +23,6 @@
 	});
 
 	const { form: formData, enhance } = form;
-
-	// Handle parent category selection
-	let selectedParentId = $state<string>('');
-
-	$effect(() => {
-		if (selectedParentId && selectedParentId !== '') {
-			$formData.parentId = parseInt(selectedParentId);
-		} else {
-			$formData.parentId = null;
-		}
-	});
 </script>
 
 <svelte:head>
@@ -82,10 +77,10 @@
 					<Form.Control>
 						{#snippet children({ props })}
 							<Form.Label>Parent Category</Form.Label>
-							<Select.Root type="single" bind:value={selectedParentId}>
+							<Select.Root type="single" bind:value={$formData.parentId} name={props.name}>
 								<Select.Trigger {...props}>
-									{selectedParentId 
-										? data.categories.find(c => c.id === selectedParentId)?.name 
+									{$formData.parentId
+										? data.categories.find((c) => c.id === $formData.parentId)?.name
 										: 'Select a parent category (optional)'}
 								</Select.Trigger>
 								<Select.Content>
@@ -100,7 +95,8 @@
 						{/snippet}
 					</Form.Control>
 					<Form.Description>
-						Select a parent category to create a subcategory, or leave empty for a top-level category.
+						Select a parent category to create a subcategory, or leave empty for a top-level
+						category.
 					</Form.Description>
 					<Form.FieldErrors />
 				</Form.Field>
@@ -110,9 +106,7 @@
 						<Save class="h-4 w-4 mr-2" />
 						Create Category
 					</Button>
-					<Button type="button" variant="outline" href="/admin/products/categories">
-						Cancel
-					</Button>
+					<Button type="button" variant="outline" href="/admin/products/categories">Cancel</Button>
 				</div>
 			</form>
 		</CardContent>

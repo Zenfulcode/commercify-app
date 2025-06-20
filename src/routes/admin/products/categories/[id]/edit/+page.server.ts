@@ -1,11 +1,11 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { categorySchema } from '$lib/schemas/admin';
+import { categorySchema, updateCategorySchema } from '$lib/schemas/admin';
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
 
-export const load: PageServerLoad = async ({ params, cookies, locals }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	const { commercify } = locals;
 
 	const categoryId = params.id;
@@ -29,9 +29,9 @@ export const load: PageServerLoad = async ({ params, cookies, locals }) => {
 		{
 			name: category.name,
 			description: category.description || '',
-			parentId: category.parentId
+			parentId: category.parentId?.toString()
 		},
-		zod(categorySchema)
+		zod(updateCategorySchema)
 	);
 
 	return {
@@ -42,21 +42,23 @@ export const load: PageServerLoad = async ({ params, cookies, locals }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, params, cookies, locals }) => {
+	default: async ({ request, params, locals }) => {
 		const { commercify } = locals;
 
 		const categoryId = params.id;
-		const form = await superValidate(request, zod(categorySchema));
+		const form = await superValidate(request, zod(updateCategorySchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
-		const result = await commercify.updateCategory(categoryId, {
+		const inputData = {
 			name: form.data.name,
 			description: form.data.description || '',
-			parentId: form.data.parentId
-		});
+			parentId: form.data.parentId || null
+		};
+
+		const result = await commercify.updateCategory(categoryId, inputData);
 
 		if (!result.success) {
 			return fail(400, {
