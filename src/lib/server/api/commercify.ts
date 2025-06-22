@@ -372,9 +372,8 @@ export class CommercifyClient {
 				error instanceof Error ? error.message : String(error)
 			);
 			return {
-				error: `Error updating currency ${code}: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
+				error: `Error updating currency ${code}: ${error instanceof Error ? error.message : String(error)
+					}`,
 				success: false
 			};
 		}
@@ -474,9 +473,8 @@ export class CommercifyClient {
 
 			return {
 				success: false,
-				error: `Error fetching product ${productId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error fetching product ${productId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -689,9 +687,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error editing product ${productId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error editing product ${productId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -736,9 +733,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error deleting product ${productId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error deleting product ${productId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -800,9 +796,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error adding variant to product ${productId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error adding variant to product ${productId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -885,9 +880,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error updating variant ${variantId} for product ${productId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error updating variant ${variantId} for product ${productId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -939,9 +933,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error deleting variant ${variantId} for product ${productId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error deleting variant ${variantId} for product ${productId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -1113,11 +1106,11 @@ export class CommercifyClient {
 
 	private mapShippingDetails(dto: ShippingOptionDTO):
 		| {
-				shippingMethodId: number;
-				shippingMethodName: string;
-				shippingCost: number;
-				estimatedDelivery: string;
-		  }
+			shippingMethodId: number;
+			shippingMethodName: string;
+			shippingCost: number;
+			estimatedDelivery: string;
+		}
 		| undefined {
 		return {
 			shippingMethodId: dto.shipping_method_id,
@@ -1585,6 +1578,8 @@ export class CommercifyClient {
 		try {
 			const response = await this.request<ListResponseDTO<CategoryDTO>>('/categories');
 
+			console.log('Categories response:', response);
+
 			if (!response.success || !response.data) {
 				return {
 					success: false,
@@ -1736,9 +1731,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error updating category ${categoryId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error updating category ${categoryId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
@@ -1779,9 +1773,8 @@ export class CommercifyClient {
 			);
 			return {
 				success: false,
-				error: `Error deleting category ${categoryId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Error deleting category ${categoryId}: ${error instanceof Error ? error.message : String(error)
+					}`
 			};
 		}
 	}
