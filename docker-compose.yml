@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  commercify-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+      - API_BASE_URL_DEV=${API_BASE_URL_DEV:-http://localhost:6091/api}
+      - API_BASE_URL_PROD=${API_BASE_URL_PROD:-https://api.commercify.app/api}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service (optional)
+  commercify-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - '5173:5173'
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - API_BASE_URL_DEV=${API_BASE_URL_DEV:-http://localhost:6091/api}
+      - API_BASE_URL_PROD=${API_BASE_URL_PROD:-https://api.commercify.app/api}
+    command: bun run dev --host
+    profiles:
+      - dev

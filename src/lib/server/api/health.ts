@@ -1,6 +1,6 @@
 import { commercify } from './commercify';
 import { dev } from '$app/environment';
-import { env } from '$env/dynamic/private';
+import { EnvironmentConfig } from '../env';
 
 /**
  * Health check utilities for API monitoring and debugging
@@ -75,13 +75,15 @@ export class ApiHealthCheck {
 
 		// Test 3: Environment configuration
 		try {
-			const isConfigured = env.API_BASE_URL_DEV && env.API_BASE_URL_PROD;
+			const envValidation = EnvironmentConfig.validateEnvironment();
+			const envSummary = EnvironmentConfig.getEnvironmentSummary();
+			
 			tests.push({
 				name: 'Environment Configuration',
-				success: !!isConfigured,
-				message: isConfigured
-					? 'Environment variables are properly configured'
-					: 'Missing API_BASE_URL_DEV or API_BASE_URL_PROD environment variables'
+				success: envValidation.isValid,
+				message: envValidation.isValid
+					? `Environment properly configured (${envSummary.mode} mode)${envValidation.warnings.length > 0 ? ` with ${envValidation.warnings.length} warnings` : ''}`
+					: `Environment validation failed: ${envValidation.errors.join(', ')}`
 			});
 		} catch (error) {
 			tests.push({
@@ -107,6 +109,8 @@ export class ApiHealthCheck {
 		sample_product_count: number;
 		environment: string;
 		api_url: string;
+		env_summary: ReturnType<typeof EnvironmentConfig.getEnvironmentSummary>;
+		env_validation: ReturnType<typeof EnvironmentConfig.validateEnvironment>;
 	}> {
 		try {
 			const [result, searchResult] = await Promise.all([
@@ -122,13 +126,16 @@ export class ApiHealthCheck {
 				throw new Error(searchResult.error || 'Failed to search products');
 			}
 
+			const envSummary = EnvironmentConfig.getEnvironmentSummary();
+			const envValidation = EnvironmentConfig.validateEnvironment();
+
 			return {
 				currencies_count: result.data.items.length,
 				sample_product_count: searchResult.data.pagination.totalItems,
 				environment: dev ? 'development' : 'production',
-				api_url: dev
-					? env.API_BASE_URL_DEV || 'Not configured'
-					: env.API_BASE_URL_PROD || 'Not configured'
+				api_url: envSummary.api_base_url,
+				env_summary: envSummary,
+				env_validation: envValidation
 			};
 		} catch (error) {
 			throw new Error(`Failed to get API stats: ${error}`);

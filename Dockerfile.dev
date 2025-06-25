@@ -1,0 +1,23 @@
+# Development Dockerfile
+FROM oven/bun:1
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock* ./
+
+# Install dependencies
+RUN bun install
+
+# Copy source code
+COPY . .
+
+# Expose the development port
+EXPOSE 5173
+
+# Environment variables
+ENV NODE_ENV=development
+
+# Start the development server
+CMD ["bun", "run", "dev", "--host", "0.0.0.0"]
