@@ -3,7 +3,6 @@
 A modern e-commerce admin dashboard built with SvelteKit, showcasing integration with the Commercify API platform. This application provides a comprehensive interface for managing products, categories, orders, and customer data.
 
 ![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![SvelteKit](https://img.shields.io/badge/SvelteKit-5.x-orange.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)
 
@@ -43,7 +42,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone <repository-url>
-cd commercify-go-demo
+cd commercify-go-app
 ```
 
 ### 2. Install Dependencies
@@ -58,16 +57,6 @@ Copy the example environment file and configure your API endpoints:
 
 ```bash
 cp .env.example .env
-```
-
-Edit `.env` and update the API URLs:
-
-```bash
-# Development API URL
-API_BASE_URL_DEV=http://localhost:6091/api
-
-# Production API URL
-API_BASE_URL_PROD=https://api.commercify.com/v1
 ```
 
 ### 4. Start Development Server
@@ -97,7 +86,7 @@ The application will be available at `http://localhost:5173`
 1. **Build the image:**
 
 ```bash
-docker build -t commercify-go-demo .
+docker build -t commercify-go-app .
 ```
 
 2. **Run the container:**
@@ -106,7 +95,7 @@ docker build -t commercify-go-demo .
 docker run -p 3000:3000 \
   -e API_BASE_URL_DEV=http://localhost:6091/api \
   -e API_BASE_URL_PROD=https://api.commercify.com/v1 \
-  commercify-go-demo
+  commercify-go-app
 ```
 
 ### Using Docker Compose
@@ -121,36 +110,10 @@ docker-compose up -d
 docker-compose --profile dev up -d
 ```
 
-For detailed Docker instructions, see [DOCKER.md](./DOCKER.md).
-
-## 🏥 Health Monitoring
-
-The application includes comprehensive health checking:
-
-### Basic Health Check
-
-```bash
-curl http://localhost:5173/health
-```
-
-### Detailed Diagnostics
-
-```bash
-curl http://localhost:5173/health?detailed=true
-```
-
-The detailed health check provides:
-
-- API connectivity tests
-- Environment variable validation
-- Database connection status
-- Performance metrics
-- Configuration diagnostics
-
 ## 📁 Project Structure
 
 ```
-commercify-go-demo/
+commercify-go-app/
 ├── src/
 │   ├── lib/
 │   │   ├── components/          # Reusable UI components
