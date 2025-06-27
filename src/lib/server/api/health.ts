@@ -109,6 +109,7 @@ export class ApiHealthCheck {
 		sample_product_count: number;
 		environment: string;
 		api_url: string;
+		origin_url: string;
 		env_summary: ReturnType<typeof EnvironmentConfig.getEnvironmentSummary>;
 		env_validation: ReturnType<typeof EnvironmentConfig.validateEnvironment>;
 	}> {
@@ -134,6 +135,7 @@ export class ApiHealthCheck {
 				sample_product_count: searchResult.data.pagination.totalItems,
 				environment: dev ? 'development' : 'production',
 				api_url: envSummary.api_base_url,
+				origin_url: EnvironmentConfig.getOriginUrl(),
 				env_summary: envSummary,
 				env_validation: envValidation
 			};

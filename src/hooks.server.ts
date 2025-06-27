@@ -8,7 +8,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	// Check if the route requires admin authentication
 	if (event.url.pathname.startsWith('/admin')) {
 		const accessToken = event.cookies.get('access_token');
-		const userRole = event.cookies.get('user_role');
 
 		// If no access token, redirect to login immediately
 		if (!accessToken) {

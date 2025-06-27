@@ -75,4 +75,21 @@ export class EnvironmentConfig {
 			}
 		};
 	}
+
+	/**
+	 * Get the origin URL for the current environment
+	 */
+	static getOriginUrl(): string {
+		// Check for explicitly set ORIGIN environment variable first
+		if (env.ORIGIN) {
+			return env.ORIGIN;
+		}
+
+		// Fallback based on environment
+		if (dev) {
+			return 'http://localhost:5173';
+		} else {
+			return 'http://localhost:3000';
+		}
+	}
 }

@@ -94,6 +94,7 @@ export class CommercifyClient {
 		try {
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
+				'Origin': EnvironmentConfig.getOriginUrl(),
 				...(options.headers as Record<string, string>)
 			};
 
@@ -115,7 +116,8 @@ export class CommercifyClient {
 
 			console.log('Making request to:', url, {
 				headers: Object.keys(headers),
-				hasAuthHeader: !!headers['Authorization']
+				hasAuthHeader: !!headers['Authorization'],
+				origin: headers['Origin']
 			});
 
 			const response = await fetch(url, {
