@@ -62,9 +62,6 @@ const handleCommercify: Handle = async ({ event, resolve }) => {
 
 	event.locals.commercify = createCommercifyClient(cookieString);
 
-	console.log('Request URL:', event.url.href);
-	console.log('Node environment:', env.NODE_ENV);
-
 	// For shop routes, ensure we have a checkout session and set the cookie
 	if (event.url.pathname.startsWith('/shop')) {
 		try {

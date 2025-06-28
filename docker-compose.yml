@@ -1,7 +1,7 @@
 services:
   # Commercify API Backend
   commercify-api:
-    image: ghcr.io/zenfulcode/commercifygo:v1.0-dev
+    image: ghcr.io/zenfulcode/commercifygo:dev
     ports:
       - '6091:6091'
     environment:
@@ -75,7 +75,7 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U commercify -d commercify']
-      interval: 30s
+      interval: 60s
       timeout: 10s
       retries: 3
     networks:
@@ -100,7 +100,7 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 30s
+      interval: 60s
       timeout: 10s
       retries: 3
       start_period: 40s

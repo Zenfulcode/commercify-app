@@ -6,7 +6,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	try {
 		// Check if detailed health check is requested
 		const detailed = url.searchParams.get('detailed') === 'true';
-		
+
 		if (detailed) {
 			// Perform comprehensive health check
 			const result = await ApiHealthCheck.performHealthCheck();
@@ -50,6 +50,8 @@ export const GET: RequestHandler = async ({ url }) => {
 				);
 			}
 		}
+
+		console.log('Performing simple health check');
 
 		// Simple health check
 		return json(
