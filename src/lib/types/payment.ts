@@ -1,7 +1,13 @@
 import type { Price } from './common';
 
 export type PaymentMethod = 'credit_card' | 'wallet';
-export type PaymentStatus = 'pending' | 'completed' | 'failed';
+export type PaymentStatus =
+	| 'pending'
+	| 'authorized'
+	| 'captured'
+	| 'refunded'
+	| 'cancelled'
+	| 'failed';
 export type PaymentProvider = 'stripe' | 'mobilepay';
 
 export interface PaymentDetails {

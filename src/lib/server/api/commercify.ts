@@ -6,8 +6,10 @@ import type {
 	CreateProductVariantInput,
 	Currency,
 	Order,
+	OrderStatus,
 	OrderSummary,
 	PaginatedData,
+	PaymentStatus,
 	Product,
 	ProductVariant,
 	UpdateCategoryInput,
@@ -43,9 +45,15 @@ import {
 	type CategoryDTO,
 	type CreateCategoryRequest,
 	type UpdateCategoryRequest,
-	type UserDTO
+	type UserDTO,
+	type OrderDTO,
+	type OrderStatus as ApiOrderStatus,
+	type AppliedDiscountDTO,
+	type CompleteCheckoutRequest,
+	type CheckoutCompleteResponse,
+	type OrderSummaryDTO
 } from './types';
-import type { Address, Checkout, CheckoutItem } from '$lib/types/checkout';
+import type { Address, Checkout, CheckoutItem, CompleteCheckoutInput } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
 import type { CommercifyUser } from '$lib/types/user';
 
@@ -94,7 +102,7 @@ export class CommercifyClient {
 		try {
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
-				'Origin': EnvironmentConfig.getOriginUrl(),
+				Origin: EnvironmentConfig.getOriginUrl(),
 				...(options.headers as Record<string, string>)
 			};
 
@@ -114,11 +122,11 @@ export class CommercifyClient {
 				headers['Cookie'] = this.cookies;
 			}
 
-			console.log('Making request to:', url, {
-				headers: Object.keys(headers),
-				hasAuthHeader: !!headers['Authorization'],
-				origin: headers['Origin']
-			});
+			// console.log('Making request to:', url, {
+			// 	headers: Object.keys(headers),
+			// 	hasAuthHeader: !!headers['Authorization'],
+			// 	origin: headers['Origin']
+			// });
 
 			const response = await fetch(url, {
 				headers,
@@ -591,8 +599,6 @@ export class CommercifyClient {
 				})) || []
 		};
 
-		console.log('Api request body:', apiData);
-
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>('/admin/products', {
 				method: 'POST',
@@ -1015,11 +1021,27 @@ export class CommercifyClient {
 	/**
 	 * Get or create a checkout session for the current user/session
 	 */
-	async getOrCreateCheckout(): Promise<{ success: boolean; data?: Checkout; error?: string }> {
+	async getOrCreateCheckout(
+		currency: string
+	): Promise<{ success: boolean; data?: Checkout; error?: string }> {
+		if (!currency) {
+			console.warn('No currency provided for checkout session');
+			return {
+				success: false,
+				error: 'Currency is required to get or create a checkout session'
+			};
+		}
+
+		const params = new URLSearchParams();
+		params.append('currency', currency);
+
 		try {
-			const response = await this.request<ResponseDTO<CheckoutDTO>>('/checkout', {
-				method: 'GET'
-			});
+			const response = await this.request<ResponseDTO<CheckoutDTO>>(
+				`/checkout?${params.toString()}`,
+				{
+					method: 'GET'
+				}
+			);
 
 			if (!response.success || !response.data) {
 				return {
@@ -1058,11 +1080,12 @@ export class CommercifyClient {
 			},
 			subtotal: dto.total_amount,
 			totalAmount: dto.final_amount,
+			shippingCost: dto.shipping_cost,
 			currency: dto.currency,
 			shippingDetails: dto.shipping_option
 				? this.mapShippingDetails(dto.shipping_option)
 				: undefined,
-			discountDetails: this.mapDiscountDetails(dto),
+			discountDetails: this.mapDiscountDetails(dto.applied_discount),
 			paymentProvider: dto.payment_provider,
 			status: dto.status,
 			createdAt: dto.created_at,
@@ -1083,30 +1106,28 @@ export class CommercifyClient {
 		};
 	}
 
-	private mapDiscountDetails(dto: CheckoutDTO) {
-		if (dto.discount_amount === 0 || !dto.applied_discount) return undefined;
+	private mapDiscountDetails(discount?: AppliedDiscountDTO) {
+		if (!discount) return undefined;
 
 		const validTypes = ['percentage', 'fixed'];
-		if (!validTypes.includes(dto.applied_discount.type)) {
-			console.warn(`Invalid discount type: ${dto.applied_discount.type}. Defaulting to 'fixed'.`);
-			dto.applied_discount.type = 'fixed';
+		if (!validTypes.includes(discount.type)) {
+			console.warn(`Invalid discount type: ${discount.type}. Defaulting to 'fixed'.`);
+			discount.type = 'fixed';
 		}
 
 		const validMethods = ['basket', 'item'];
 
-		if (!validMethods.includes(dto.applied_discount.method)) {
-			console.warn(
-				`Invalid discount method: ${dto.applied_discount.method}. Defaulting to 'basket'.`
-			);
-			dto.applied_discount.method = 'basket';
+		if (!validMethods.includes(discount.method)) {
+			console.warn(`Invalid discount method: ${discount.method}. Defaulting to 'basket'.`);
+			discount.method = 'basket';
 		}
 
 		return {
-			code: dto.applied_discount.code,
-			amount: dto.applied_discount.amount,
-			value: dto.applied_discount.value,
-			type: dto.applied_discount.type as 'percentage' | 'fixed',
-			method: dto.applied_discount.method as 'basket' | 'item'
+			code: discount.code,
+			amount: discount.amount,
+			value: discount.value,
+			type: discount.type as 'percentage' | 'fixed',
+			method: discount.method as 'basket' | 'item'
 		};
 	}
 
@@ -1154,7 +1175,6 @@ export class CommercifyClient {
 				body: JSON.stringify(data)
 			});
 
-			console.log('Checkout item added:', response.data?.items);
 			if (!response.success || !response.data) {
 				return {
 					success: false,
@@ -1495,10 +1515,129 @@ export class CommercifyClient {
 	/**
 	 * Convert the current checkout session to an order
 	 */
-	async convertCheckoutToOrder(): Promise<{ success: boolean; data?: Order; error?: string }> {
+	async convertCheckoutToOrder(input: CompleteCheckoutInput): Promise<{
+		success: boolean;
+		data?: {
+			order: OrderSummary;
+			actionRequired: boolean;
+			redirect_url: string | null;
+		};
+		error?: string;
+	}> {
+		console.log('Converting checkout to order with input:', input);
+
+		const requestBody: CompleteCheckoutRequest = {
+			payment_provider: input.provider,
+			payment_data: {}
+		};
+
+		if (input.provider === 'stripe') {
+			requestBody.payment_data.card_details = {
+				card_number: input.cardDetails!.cardNumber,
+				expiry_month: parseInt(input.cardDetails!.expiryMonth, 10),
+				expiry_year: parseInt(input.cardDetails!.expiryYear, 10),
+				cvv: input.cardDetails!.cvc,
+				cardholder_name: 'N/A' // Placeholder, not used in API
+			};
+		} else if (input.provider === 'mobilepay') {
+			requestBody.payment_data = {
+				phone_number: input.phoneNumber!
+			};
+		}
+
+		console.log('Complete checkout request body:', requestBody);
+
+		try {
+			const response = await this.request<ResponseDTO<CheckoutCompleteResponse>>(
+				'/checkout/complete',
+				{
+					method: 'POST',
+					body: JSON.stringify(requestBody)
+				}
+			);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to remove discount code'
+				};
+			}
+
+			return {
+				success: true,
+				data: {
+					order: this.mapOrderSummary(response.data.order),
+					actionRequired: response.data.action_required || false,
+					redirect_url: response.data.redirect_url || null
+				}
+			};
+		} catch (error) {
+			console.error(
+				'Error removing checkout discount:',
+				error instanceof Error ? error.message : String(error)
+			);
+
+			return {
+				success: false,
+				error: 'Failed to remove discount code'
+			};
+		}
+	}
+
+	mapOrder(dto: OrderDTO): Order {
 		return {
-			success: false,
-			error: 'This method is not implemented yet. Please check back later.'
+			id: dto.id.toString(),
+			checkoutId: dto.checkout_id?.toString() || 'N/A',
+			subtotal: dto.total_amount,
+			orderNumber: dto.order_number,
+			status: dto.status as OrderStatus,
+			totalAmount: dto.total_amount,
+			currency: dto.currency,
+			shippingAddress: this.mapAddress(dto.shipping_address),
+			billingAddress: this.mapAddress(dto.billing_address),
+			shippingCost: dto.shipping_cost,
+			customerDetails: {
+				fullName: dto.customer.full_name,
+				email: dto.customer.email,
+				phone: dto.customer.phone
+			},
+			items: dto.items.map((item) => ({
+				productName: item.product_name,
+				variantName: item.variant_name,
+				sku: item.sku,
+				price: item.unit_price,
+				quantity: item.quantity,
+				subtotal: item.total_price,
+				image: item.image_url === '' ? undefined : item.image_url
+			})),
+			shippingDetails: dto.shipping_details
+				? this.mapShippingDetails(dto.shipping_details)
+				: undefined,
+			discountDetails: this.mapDiscountDetails(dto.discount_details),
+			paymentProvider: dto.payment_details.provider,
+			createdAt: dto.created_at,
+			updatedAt: dto.updated_at
+		};
+	}
+
+	mapOrderSummary(dto: OrderSummaryDTO): OrderSummary {
+		return {
+			id: dto.id.toString(),
+			orderNumber: dto.order_number,
+			orderStatus: dto.status as OrderStatus,
+			totalAmount: {
+				amount: dto.total_amount,
+				currency: dto.currency
+			},
+			itemsCount: dto.order_lines_amount,
+			checkoutId: dto.checkout_id?.toString(),
+			customer: {
+				name: dto.customer.full_name,
+				email: dto.customer.email
+			},
+			paymentStatus: dto.payment_status as PaymentStatus,
+			createdAt: dto.created_at,
+			updatedAt: dto.updated_at
 		};
 	}
 

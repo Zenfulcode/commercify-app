@@ -42,9 +42,22 @@ export interface Checkout {
 	};
 	subtotal: number;
 	totalAmount: number;
+	shippingCost: number;
 	currency: string;
 	paymentProvider?: string; // e.g., 'stripe', 'mobilepay'
 	status: string; // e.g., 'pending', 'paid', 'shipped', 'completed', 'cancelled'
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface CompleteCheckoutInput {
+	provider: 'stripe' | 'mobilepay'; // e.g., 'stripe', 'mobilepay'
+	phoneNumber?: string; // Required for mobilepay, optional for others
+	// Required for stripe
+	cardDetails?: {
+		cardNumber: string; // e.g., '4242 4242 4242 4242'
+		expiryMonth: string; // e.g., '12'
+		expiryYear: string; // e.g., '2025'
+		cvc: string; // e.g., '123'
+	};
 }

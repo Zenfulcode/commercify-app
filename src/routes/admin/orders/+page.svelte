@@ -114,8 +114,8 @@
 										</Badge>
 									</Table.Cell>
 									<Table.Cell>
-										<Badge class={getStatusColor(order.status)}>
-											{order.status}
+										<Badge class={getStatusColor(order.orderStatus)}>
+											{order.orderStatus}
 										</Badge>
 									</Table.Cell>
 									<Table.Cell class="text-right">
