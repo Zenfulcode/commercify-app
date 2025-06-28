@@ -53,7 +53,13 @@ import {
 	type CheckoutCompleteResponse,
 	type OrderSummaryDTO
 } from './types';
-import type { Address, Checkout, CheckoutItem, CompleteCheckoutInput } from '$lib/types/checkout';
+import type {
+	Address,
+	Checkout,
+	CheckoutItem,
+	CompleteCheckoutInput,
+	SetAddressInput
+} from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
 import type { CommercifyUser } from '$lib/types/user';
 
@@ -141,15 +147,7 @@ export class CommercifyClient {
 					headers: Object.keys(headers)
 				});
 
-				// Try to get the response body for more details
-				try {
-					const errorBody = await response.text();
-					console.error('Error response body:', errorBody);
-				} catch (e) {
-					console.error('Could not read error response body');
-				}
-
-				throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+				throw new Error(response.statusText || 'API request failed');
 			}
 
 			return await response.json();
@@ -1305,12 +1303,21 @@ export class CommercifyClient {
 	 * Set shipping address for the checkout
 	 */
 	async setShippingAddress(
-		data: SetShippingAddressRequest
+		data: SetAddressInput
 	): Promise<{ success: boolean; data?: Checkout; error?: string }> {
+		const requestBody: SetShippingAddressRequest = {
+			address_line1: data.addressLine1,
+			address_line2: data.addressLine2 || '',
+			city: data.city,
+			state: data.state || '',
+			postal_code: data.postalCode,
+			country: data.country
+		};
+
 		try {
 			const response = await this.request<ResponseDTO<CheckoutDTO>>('/checkout/shipping-address', {
 				method: 'PUT',
-				body: JSON.stringify(data)
+				body: JSON.stringify(requestBody)
 			});
 
 			if (!response.success || !response.data) {
@@ -1340,12 +1347,21 @@ export class CommercifyClient {
 	 * Set billing address for the checkout
 	 */
 	async setBillingAddress(
-		data: SetBillingAddressRequest
+		data: SetAddressInput
 	): Promise<{ success: boolean; data?: Checkout; error?: string }> {
+		const requestBody: SetShippingAddressRequest = {
+			address_line1: data.addressLine1,
+			address_line2: data.addressLine2 || '',
+			city: data.city,
+			state: data.state || '',
+			postal_code: data.postalCode,
+			country: data.country
+		};
+
 		try {
 			const response = await this.request<ResponseDTO<CheckoutDTO>>('/checkout/billing-address', {
 				method: 'PUT',
-				body: JSON.stringify(data)
+				body: JSON.stringify(requestBody)
 			});
 
 			if (!response.success || !response.data) {
@@ -1648,6 +1664,43 @@ export class CommercifyClient {
 			success: false,
 			error: 'This method is not implemented yet. Please check back later.'
 		};
+	}
+
+	async getOrderById(orderId: string): Promise<{ success: boolean; data?: Order; error?: string }> {
+		if (!orderId) {
+			console.warn('No order ID provided, returning null');
+			return {
+				success: false,
+				error: 'No order ID provided'
+			};
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<OrderDTO>>(`/orders/${orderId}`);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to retrieve order'
+				};
+			}
+
+			return {
+				success: true,
+				data: this.mapOrder(response.data)
+			};
+		} catch (error) {
+			console.error(
+				`Error fetching order ${orderId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Error fetching order ${orderId}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
+		}
 	}
 
 	async createDiscount(input: CreateDiscount): Promise<{

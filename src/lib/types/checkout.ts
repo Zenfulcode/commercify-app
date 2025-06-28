@@ -61,3 +61,12 @@ export interface CompleteCheckoutInput {
 		cvc: string; // e.g., '123'
 	};
 }
+
+export interface SetAddressInput {
+	addressLine1: string;
+	addressLine2?: string;
+	city: string;
+	state?: string;
+	postalCode: string;
+	country: string;
+}

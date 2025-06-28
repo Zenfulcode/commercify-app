@@ -68,7 +68,7 @@ const handleCommercify: Handle = async ({ event, resolve }) => {
 	// For shop routes, ensure we have a checkout session and set the cookie
 	if (event.url.pathname.startsWith('/shop')) {
 		try {
-			const checkoutResponse = await event.locals.commercify.getOrCreateCheckout();
+			const checkoutResponse = await event.locals.commercify.getOrCreateCheckout('DKK');
 
 			if (checkoutResponse.success && checkoutResponse.data?.id) {
 				// Set the checkout session cookie

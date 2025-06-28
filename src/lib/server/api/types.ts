@@ -103,9 +103,9 @@ export interface UpdateCheckoutItemRequest {
  */
 export interface SetShippingAddressRequest {
 	address_line1: string;
-	address_line2: string;
+	address_line2?: string;
 	city: string;
-	state: string;
+	state?: string;
 	postal_code: string;
 	country: string;
 }
@@ -114,9 +114,9 @@ export interface SetShippingAddressRequest {
  */
 export interface SetBillingAddressRequest {
 	address_line1: string;
-	address_line2: string;
+	address_line2?: string;
 	city: string;
-	state: string;
+	state?: string;
 	postal_code: string;
 	country: string;
 }
