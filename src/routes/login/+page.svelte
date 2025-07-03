@@ -8,7 +8,7 @@
 	import { enhance } from '$app/forms';
 
 	let { form } = $props();
-	
+
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 
@@ -25,11 +25,9 @@
 	<Card.Root class="w-full max-w-md">
 		<Card.Header class="text-center">
 			<Card.Title class="text-2xl font-bold">Admin Login</Card.Title>
-			<Card.Description>
-				Sign in to access the Commercify admin dashboard
-			</Card.Description>
+			<Card.Description>Sign in to access the Commercify admin dashboard</Card.Description>
 		</Card.Header>
-		
+
 		<Card.Content>
 			{#if form?.error}
 				<Alert class="mb-6" variant="destructive">
@@ -41,8 +39,8 @@
 				</Alert>
 			{/if}
 
-			<form 
-				method="POST" 
+			<form
+				method="POST"
 				class="space-y-6"
 				use:enhance={() => {
 					isSubmitting = true;
@@ -96,11 +94,7 @@
 					</div>
 				</div>
 
-				<Button
-					type="submit"
-					class="w-full"
-					disabled={isSubmitting}
-				>
+				<Button type="submit" class="w-full" disabled={isSubmitting}>
 					{#if isSubmitting}
 						<div class="flex items-center">
 							<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -113,11 +107,9 @@
 				</Button>
 			</form>
 		</Card.Content>
-		
+
 		<Card.Footer class="text-center">
-			<p class="text-sm text-gray-600">
-				Only administrators can access this dashboard
-			</p>
+			<p class="text-sm text-gray-600">Only administrators can access this dashboard</p>
 		</Card.Footer>
 	</Card.Root>
 </div>

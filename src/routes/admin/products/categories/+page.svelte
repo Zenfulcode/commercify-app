@@ -3,7 +3,13 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -80,7 +86,10 @@
 							</Button>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content>
-							<DropdownMenu.Item onclick={() => window.location.href = `/admin/products/categories/${category.id}/edit`}>
+							<DropdownMenu.Item
+								onclick={() =>
+									(window.location.href = `/admin/products/categories/${category.id}/edit`)}
+							>
 								<Edit class="h-4 w-4 mr-2" />
 								Edit
 							</DropdownMenu.Item>
@@ -145,9 +154,9 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={closeDeleteDialog}>Cancel</Button>
-			<form 
-				method="POST" 
-				action="?/delete" 
+			<form
+				method="POST"
+				action="?/delete"
 				use:enhance={() => {
 					return async ({ result }) => {
 						if (result.type === 'success') {

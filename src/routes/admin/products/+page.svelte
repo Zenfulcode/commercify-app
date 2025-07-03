@@ -38,9 +38,7 @@
 			<p class="text-muted-foreground">Manage your product catalog</p>
 		</div>
 		<div class="flex items-center gap-3">
-			<Button href="/admin/products/categories" variant="outline">
-				Categories
-			</Button>
+			<Button href="/admin/products/categories" variant="outline">Categories</Button>
 			<Button href="/admin/products/new" class="flex items-center gap-2">
 				<Plus class="h-4 w-4" />
 				Add Product
