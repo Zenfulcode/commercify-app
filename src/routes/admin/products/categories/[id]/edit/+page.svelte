@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
-	import { updateCategorySchema } from '$lib/schemas/admin';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -15,11 +14,12 @@
 	import * as Form from '$lib/components/ui/form';
 	import * as Select from '$lib/components/ui/select';
 	import { ArrowLeft, Save } from 'lucide-svelte';
+	import { categorySchema } from '$lib/schemas/admin.js';
 
 	let { data } = $props();
 
 	const form = superForm(data.form, {
-		validators: zodClient(updateCategorySchema)
+		validators: zodClient(categorySchema)
 	});
 
 	const { form: formData, enhance } = form;

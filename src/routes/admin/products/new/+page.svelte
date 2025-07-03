@@ -10,7 +10,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { productSchema, type ProductSchema } from '$lib/schemas/product.schema';
 	import { toast } from 'svelte-sonner';
-	import SuperDebug, { superForm, type SuperValidated } from 'sveltekit-superforms';
+	import SuperDebug, { superForm, type Infer, type SuperValidated } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { generateSKU } from '$lib/utils/admin';
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
@@ -21,7 +21,11 @@
 	let {
 		data
 	}: {
-		data: { form: SuperValidated<ProductSchema>; currencies: Currency[]; categories: Category[] };
+		data: {
+			form: SuperValidated<Infer<ProductSchema>>;
+			currencies: Currency[];
+			categories: Category[];
+		};
 	} = $props();
 
 	const form = superForm(data.form, {

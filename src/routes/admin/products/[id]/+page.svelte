@@ -10,7 +10,7 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table';
-	import { ArrowLeft, Edit, Eye, Package } from 'lucide-svelte';
+	import { ArrowLeft, Edit, Eye } from 'lucide-svelte';
 	import { formatCurrency, getStockStatus } from '$lib';
 
 	let { data } = $props();

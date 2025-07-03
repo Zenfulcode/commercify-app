@@ -1,7 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { categorySchema, updateCategorySchema } from '$lib/schemas/admin';
+import { categorySchema } from '$lib/schemas/admin';
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
 
@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			description: category.description || '',
 			parentId: category.parentId?.toString()
 		},
-		zod(updateCategorySchema)
+		zod(categorySchema)
 	);
 
 	return {
@@ -46,7 +46,7 @@ export const actions: Actions = {
 		const { commercify } = locals;
 
 		const categoryId = params.id;
-		const form = await superValidate(request, zod(updateCategorySchema));
+		const form = await superValidate(request, zod(categorySchema));
 
 		if (!form.valid) {
 			return fail(400, { form });

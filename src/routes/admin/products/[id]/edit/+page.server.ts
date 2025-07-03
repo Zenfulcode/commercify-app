@@ -2,11 +2,8 @@ import type { Actions } from '@sveltejs/kit';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import {
-	productSchema,
-	productVariantSchema,
-	updateProductSchema
-} from '$lib/schemas/product.schema';
+import { productSchema, productVariantSchema } from '$lib/schemas/product.schema';
+import type { CreateProductVariantInput } from '$lib/types/product.js';
 
 export const load = async ({ params, locals }) => {
 	const productId = params.id;
@@ -94,7 +91,7 @@ export const actions: Actions = {
 		}
 
 		const { commercify } = locals;
-		const form = await superValidate(request, zod(updateProductSchema));
+		const form = await superValidate(request, zod(productSchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -153,7 +150,17 @@ export const actions: Actions = {
 		}
 		console.log('Adding product variant with data:', form.data);
 
-		const result = await commercify.addProductVariant(productId, form.data);
+		const input: CreateProductVariantInput = {
+			sku: form.data.sku,
+			price: form.data.price,
+			stock: form.data.stock || 0,
+			weight: form.data.weight || 0,
+			attributes: form.data.attributes || {},
+			images: form.data.images || [],
+			isDefault: form.data.isDefault || false
+		};
+
+		const result = await commercify.addProductVariant(productId, input);
 		if (!result.success) {
 			console.error('Error adding product variant:', result.error);
 			return fail(400, {

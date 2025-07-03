@@ -10,8 +10,8 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { productSchema, type ProductSchema } from '$lib/schemas/product.schema';
 	import { toast } from 'svelte-sonner';
-	import SuperDebug, { superForm, type SuperValidated } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { superForm, type SuperValidated } from 'sveltekit-superforms';
+	import { zodClient, type Infer } from 'sveltekit-superforms/adapters';
 	import { generateSKU } from '$lib/utils/admin';
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
@@ -21,7 +21,7 @@
 		data
 	}: {
 		data: {
-			form: SuperValidated<ProductSchema>;
+			form: SuperValidated<Infer<ProductSchema>>;
 			currencies: Currency[];
 			categories: Category[];
 			product: any;
@@ -106,14 +106,14 @@
 		const url = prompt('Enter image URL:');
 		if (url && url.trim()) {
 			$formData.variants[variantIndex].images = [
-				...$formData.variants[variantIndex].images,
+				...($formData.variants[variantIndex].images || []),
 				url.trim()
 			];
 		}
 	}
 
 	function removeImageFromVariant(variantIndex: number, imageIndex: number) {
-		$formData.variants[variantIndex].images = $formData.variants[variantIndex].images.filter(
+		$formData.variants[variantIndex].images = $formData.variants[variantIndex].images?.filter(
 			(_, i) => i !== imageIndex
 		);
 	}
