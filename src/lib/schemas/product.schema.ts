@@ -6,14 +6,7 @@ export const productVariantSchema = z.object({
 	price: z.number().min(1, 'Price must be 0 or greater'),
 	stock: z.number().int().min(0, 'Stock must be 0 or greater'),
 	weight: z.number().min(0, 'Weight must be 0 or greater').optional(),
-	attributes: z
-		.array(
-			z.object({
-				name: z.string().min(1, 'Attribute name is required'),
-				value: z.string().min(1, 'Attribute value is required')
-			})
-		)
-		.default([]),
+	attributes: z.record(z.string(), z.string()).default({}),
 	images: z.array(z.string().url('Invalid image URL')).default([]),
 	isDefault: z.boolean().default(false)
 });

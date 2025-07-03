@@ -3,7 +3,7 @@
  */
 export function generateSKU(
 	productName: string,
-	attributes: Array<{ name: string; value: string }> = []
+	attributes: { [key: string]: string } = {}
 ): string {
 	// Clean product name: remove special characters, convert to uppercase, limit to 8 chars
 	const cleanName = productName
@@ -12,7 +12,7 @@ export function generateSKU(
 		.substring(0, 8);
 
 	// Create attribute suffix from first letter of each attribute value
-	const attributeSuffix = attributes.map((attr) => attr.value.charAt(0).toUpperCase()).join('');
+	const attributeSuffix = Object.values(attributes).map((value) => value.charAt(0).toUpperCase()).join('');
 
 	// Generate random suffix for uniqueness
 	const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();

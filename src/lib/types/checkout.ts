@@ -46,8 +46,6 @@ export interface Checkout {
 	currency: string;
 	paymentProvider?: string; // e.g., 'stripe', 'mobilepay'
 	status: string; // e.g., 'pending', 'paid', 'shipped', 'completed', 'cancelled'
-	createdAt: string;
-	updatedAt: string;
 }
 
 export interface CompleteCheckoutInput {

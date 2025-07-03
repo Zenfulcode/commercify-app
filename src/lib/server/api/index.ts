@@ -13,4 +13,5 @@ export { ApiUtils } from './utils';
 export { ApiHealthCheck } from './health';
 
 // Export Commercify API types for server-side use
-export * from './types';
+export * from './dtos';
+export * from './contracts';

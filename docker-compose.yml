@@ -1,7 +1,7 @@
 services:
   # Commercify API Backend
   commercify-api:
-    image: ghcr.io/zenfulcode/commercifygo:dev
+    image: ghcr.io/zenfulcode/commercifygo:v2-dev
     ports:
       - '6091:6091'
     environment:
@@ -9,6 +9,7 @@ services:
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
 
       # Database Configuration
+      - DB_DRIVER=postgres
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=commercify
@@ -44,10 +45,10 @@ services:
       - MOBILEPAY_CLIENT_SECRET=${MOBILEPAY_CLIENT_SECRET:-}
       - MOBILEPAY_WEBHOOK_URL=${MOBILEPAY_WEBHOOK_URL:-}
       - MOBILEPAY_PAYMENT_DESCRIPTION=${MOBILEPAY_PAYMENT_DESCRIPTION:-Commercify Store Purchase}
-      - MOBILEPAY_MARKET=${MOBILEPAY_MARKET:-NOK}
 
       # Return URL
       - RETURN_URL=${RETURN_URL:-http://localhost:3000/payment/complete}
+      - DEFAULT_CURRENCY=${DEFAULT_CURRENCY:-USD}
     depends_on:
       - postgres
     restart: unless-stopped
@@ -92,7 +93,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
-      - ORIGIN=https://ffc1-2a05-f6c6-5509-0-f946-cd78-df73-103c.ngrok-free.app
+      - ORIGIN=https://e070-2a05-f6c6-5509-0-9848-7eb2-e94f-832f.ngrok-free.app
       - API_BASE_URL_DEV=http://commercify-api:6091/api
       - API_BASE_URL_PROD=http://commercify-api:6091/api
     depends_on:

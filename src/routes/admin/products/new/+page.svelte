@@ -60,11 +60,11 @@
 		$formData.variants = [
 			...$formData.variants,
 			{
-				sku: generateSKU($formData.name || 'PROD', []),
+				sku: generateSKU($formData.name || 'PROD', {}),
 				price: 0,
 				stock: 0,
 				weight: 0.0,
-				attributes: [],
+				attributes: {},
 				images: [],
 				isDefault: false
 			}
@@ -127,16 +127,15 @@
 	}
 
 	function addVariantAttribute(variantIndex: number) {
-		$formData.variants[variantIndex].attributes = [
-			...$formData.variants[variantIndex].attributes,
-			{ name: '', value: '' }
-		];
+		// Generate a unique key for the new attribute
+		const newKey = `attribute_${Date.now()}`;
+		$formData.variants[variantIndex].attributes[newKey] = '';
+		$formData.variants = [...$formData.variants];
 	}
 
-	function removeVariantAttribute(variantIndex: number, attrIndex: number) {
-		$formData.variants[variantIndex].attributes = $formData.variants[
-			variantIndex
-		].attributes.filter((_, i) => i !== attrIndex);
+	function removeVariantAttribute(variantIndex: number, attributeKey: string) {
+		delete $formData.variants[variantIndex].attributes[attributeKey];
+		$formData.variants = [...$formData.variants];
 	}
 </script>
 
@@ -578,42 +577,41 @@
 					</div>
 
 					<div class="space-y-3">
-						{#each $formData.variants[activeVariantIndex].attributes as attr, attrIndex}
+						{#each Object.entries($formData.variants[activeVariantIndex].attributes) as [attributeKey, attributeValue], index}
 							<div class="flex gap-2">
-								<Form.Field
-									{form}
-									name="variants[{activeVariantIndex}].attributes[{attrIndex}].name"
-								>
-									<Form.Control>
-										{#snippet children({ props })}
-											<Input {...props} bind:value={attr.name} placeholder="Size, Color, etc." />
-										{/snippet}
-									</Form.Control>
-								</Form.Field>
-
-								<Form.Field
-									{form}
-									name="variants[{activeVariantIndex}].attributes[{attrIndex}].value"
-								>
-									<Form.Control>
-										{#snippet children({ props })}
-											<Input {...props} bind:value={attr.value} placeholder="Large, Red, etc." />
-										{/snippet}
-									</Form.Control>
-								</Form.Field>
-
+								<Input
+									value={attributeKey}
+									placeholder="Size, Color, etc."
+									oninput={(e) => {
+										// Handle attribute key change
+										const target = e.target as HTMLInputElement;
+										const newKey = target?.value || '';
+										if (newKey !== attributeKey) {
+											// Remove old key and add new one
+											const oldValue =
+												$formData.variants[activeVariantIndex].attributes[attributeKey];
+											delete $formData.variants[activeVariantIndex].attributes[attributeKey];
+											$formData.variants[activeVariantIndex].attributes[newKey] = oldValue;
+											$formData.variants = [...$formData.variants];
+										}
+									}}
+								/>
+								<Input
+									bind:value={$formData.variants[activeVariantIndex].attributes[attributeKey]}
+									placeholder="Large, Red, etc."
+								/>
 								<Button
 									type="button"
 									variant="outline"
 									size="sm"
-									onclick={() => removeVariantAttribute(activeVariantIndex, attrIndex)}
+									onclick={() => removeVariantAttribute(activeVariantIndex, attributeKey)}
 								>
 									<Trash2 class="h-4 w-4" />
 								</Button>
 							</div>
 						{/each}
 
-						{#if $formData.variants[activeVariantIndex].attributes.length === 0}
+						{#if Object.keys($formData.variants[activeVariantIndex].attributes).length === 0}
 							<p class="text-sm text-muted-foreground">No attributes added yet.</p>
 						{/if}
 					</div>

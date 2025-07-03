@@ -11,7 +11,7 @@ export class EnvironmentConfig {
 	static getApiBaseUrl(): string {
 		const devUrl = env.API_BASE_URL_DEV;
 		const prodUrl = env.API_BASE_URL_PROD;
-		
+
 		if (dev) {
 			if (!devUrl) {
 				console.warn('API_BASE_URL_DEV not configured, using fallback');
@@ -42,7 +42,7 @@ export class EnvironmentConfig {
 		if (!env.API_BASE_URL_DEV) {
 			warnings.push('API_BASE_URL_DEV is not set, using fallback');
 		}
-		
+
 		if (!env.API_BASE_URL_PROD) {
 			warnings.push('API_BASE_URL_PROD is not set, using fallback');
 		}

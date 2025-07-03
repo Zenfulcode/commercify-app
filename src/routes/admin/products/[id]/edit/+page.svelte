@@ -60,7 +60,7 @@
 				price: 0,
 				stock: 0,
 				weight: 0,
-				attributes: [],
+				attributes: {},
 				images: [],
 				isDefault: $formData.variants.length === 0
 			}
@@ -130,16 +130,15 @@
 	}
 
 	function addVariantAttribute(variantIndex: number) {
-		$formData.variants[variantIndex].attributes = [
-			...$formData.variants[variantIndex].attributes,
-			{ name: '', value: '' }
-		];
+		// Generate a unique key for the new attribute
+		const newKey = `attribute_${Date.now()}`;
+		$formData.variants[variantIndex].attributes[newKey] = '';
+		$formData.variants = [...$formData.variants];
 	}
 
-	function removeVariantAttribute(variantIndex: number, attributeIndex: number) {
-		$formData.variants[variantIndex].attributes = $formData.variants[
-			variantIndex
-		].attributes.filter((_, i) => i !== attributeIndex);
+	function removeVariantAttribute(variantIndex: number, attributeKey: string) {
+		delete $formData.variants[variantIndex].attributes[attributeKey];
+		$formData.variants = [...$formData.variants];
 	}
 </script>
 
@@ -551,17 +550,30 @@
 						</Button>
 					</div>
 
-					{#if $formData.variants[activeVariantIndex].attributes.length > 0}
+					{#if Object.keys($formData.variants[activeVariantIndex].attributes).length > 0}
 						<div class="space-y-3">
-							{#each $formData.variants[activeVariantIndex].attributes as _, attrIndex}
+							{#each Object.entries($formData.variants[activeVariantIndex].attributes) as [attributeKey, attributeValue], index}
 								<div class="flex gap-2">
 									<Input
-										bind:value={$formData.variants[activeVariantIndex].attributes[attrIndex].name}
+										value={attributeKey}
 										placeholder="Name (e.g., Color)"
 										class="flex-1"
+										oninput={(e) => {
+											// Handle attribute key change
+											const target = e.target as HTMLInputElement;
+											const newKey = target?.value || '';
+											if (newKey !== attributeKey) {
+												// Remove old key and add new one
+												const oldValue =
+													$formData.variants[activeVariantIndex].attributes[attributeKey];
+												delete $formData.variants[activeVariantIndex].attributes[attributeKey];
+												$formData.variants[activeVariantIndex].attributes[newKey] = oldValue;
+												$formData.variants = [...$formData.variants];
+											}
+										}}
 									/>
 									<Input
-										bind:value={$formData.variants[activeVariantIndex].attributes[attrIndex].value}
+										bind:value={$formData.variants[activeVariantIndex].attributes[attributeKey]}
 										placeholder="Value (e.g., Red)"
 										class="flex-1"
 									/>
@@ -569,7 +581,7 @@
 										type="button"
 										variant="ghost"
 										size="sm"
-										onclick={() => removeVariantAttribute(activeVariantIndex, attrIndex)}
+										onclick={() => removeVariantAttribute(activeVariantIndex, attributeKey)}
 									>
 										<Trash2 class="h-4 w-4" />
 									</Button>

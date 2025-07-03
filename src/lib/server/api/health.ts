@@ -77,7 +77,7 @@ export class ApiHealthCheck {
 		try {
 			const envValidation = EnvironmentConfig.validateEnvironment();
 			const envSummary = EnvironmentConfig.getEnvironmentSummary();
-			
+
 			tests.push({
 				name: 'Environment Configuration',
 				success: envValidation.isValid,

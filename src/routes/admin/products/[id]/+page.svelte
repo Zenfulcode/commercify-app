@@ -149,17 +149,17 @@
 
 			<!-- Variant Details -->
 			{#each product.variants as variant, index}
-				{#if variant.attributes && variant.attributes.length > 0}
+				{#if variant.attributes && Object.keys(variant.attributes).length > 0}
 					<Card.Root>
 						<Card.Header>
 							<Card.Title>Variant {index + 1} Attributes ({variant.sku})</Card.Title>
 						</Card.Header>
 						<Card.Content>
 							<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-								{#each variant.attributes as attribute}
+								{#each Object.entries(variant.attributes) as [attributeName, attributeValue]}
 									<div>
-										<h4 class="font-medium text-sm text-muted-foreground">{attribute.name}</h4>
-										<p class="text-sm">{attribute.value}</p>
+										<h4 class="font-medium text-sm text-muted-foreground">{attributeName}</h4>
+										<p class="text-sm">{attributeValue}</p>
 									</div>
 								{/each}
 							</div>

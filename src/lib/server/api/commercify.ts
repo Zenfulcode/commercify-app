@@ -52,7 +52,7 @@ import {
 	type CompleteCheckoutRequest,
 	type CheckoutCompleteResponse,
 	type OrderSummaryDTO
-} from './types';
+} from './index';
 import type {
 	Address,
 	Checkout,
@@ -128,11 +128,11 @@ export class CommercifyClient {
 				headers['Cookie'] = this.cookies;
 			}
 
-			// console.log('Making request to:', url, {
-			// 	headers: Object.keys(headers),
-			// 	hasAuthHeader: !!headers['Authorization'],
-			// 	origin: headers['Origin']
-			// });
+			console.log('Making request to:', url, {
+				headers: Object.keys(headers),
+				hasAuthHeader: !!headers['Authorization'],
+				origin: headers['Origin']
+			});
 
 			const response = await fetch(url, {
 				headers,
@@ -591,8 +591,11 @@ export class CommercifyClient {
 					sku: variant.sku,
 					price: variant.price,
 					stock: variant.stock,
-					attributes: variant.attributes || [],
-					images: variant.images,
+					weight: variant.weight || 0,
+					attributes: variant.attributes
+						? Object.entries(variant.attributes).map(([name, value]) => ({ name, value }))
+						: [],
+					images: variant.images || [],
 					is_default: variant.isDefault
 				})) || []
 		};
@@ -776,12 +779,21 @@ export class CommercifyClient {
 				error: 'No product ID provided'
 			};
 		}
+
+		// Transform attributes to match API expectations
+		const apiVariantData = {
+			...variantData,
+			attributes: variantData.attributes
+				? Object.entries(variantData.attributes).map(([name, value]) => ({ name, value }))
+				: []
+		};
+
 		try {
 			const response = await this.request<ResponseDTO<VariantDTO>>(
 				`/admin/products/${productId}/variants`,
 				{
 					method: 'POST',
-					body: JSON.stringify(variantData)
+					body: JSON.stringify(apiVariantData)
 				}
 			);
 			if (response.success && response.data) {
@@ -856,7 +868,9 @@ export class CommercifyClient {
 			sku: variantData.sku,
 			price: variantData.price,
 			stock: variantData.stock,
-			attributes: variantData.attributes,
+			attributes: variantData.attributes
+				? Object.entries(variantData.attributes).map(([name, value]) => ({ name, value }))
+				: undefined,
 			images: variantData.images,
 			is_default: variantData.isDefault
 		};
@@ -982,8 +996,8 @@ export class CommercifyClient {
 				amount: apiProduct.price,
 				currency: apiProduct.currency
 			},
-			stock: apiProduct.stock,
-			categoryId: apiProduct.category_id.toString(),
+			stock: apiProduct.total_stock,
+			categoryId: apiProduct.category_id?.toString() || null,
 			images: apiProduct.images,
 			hasVariants: apiProduct.has_variants,
 			variants: apiProduct.variants?.map(this.mapApiVariantToVariant) || [],
@@ -997,6 +1011,16 @@ export class CommercifyClient {
 	 * Map API variant response to our ProductVariant interface
 	 */
 	private mapApiVariantToVariant(apiVariant: VariantDTO): ProductVariant {
+		// Convert attributes array back to key-value object
+		const attributes: { [key: string]: string } = {};
+		if (apiVariant.attributes && Array.isArray(apiVariant.attributes)) {
+			apiVariant.attributes.forEach((attr: any) => {
+				if (attr.name && attr.value) {
+					attributes[attr.name] = attr.value;
+				}
+			});
+		}
+
 		return {
 			id: apiVariant.id,
 			sku: apiVariant.sku,
@@ -1005,7 +1029,7 @@ export class CommercifyClient {
 				currency: apiVariant.currency
 			},
 			stock: apiVariant.stock ?? apiVariant.stock ?? 0,
-			attributes: apiVariant.attributes,
+			attributes,
 			images: apiVariant.images || [],
 			isDefault: apiVariant.is_default
 		};
@@ -1085,9 +1109,7 @@ export class CommercifyClient {
 				: undefined,
 			discountDetails: this.mapDiscountDetails(dto.applied_discount),
 			paymentProvider: dto.payment_provider,
-			status: dto.status,
-			createdAt: dto.created_at,
-			updatedAt: dto.updated_at
+			status: dto.status
 		};
 	}
 
@@ -1630,9 +1652,7 @@ export class CommercifyClient {
 				? this.mapShippingDetails(dto.shipping_details)
 				: undefined,
 			discountDetails: this.mapDiscountDetails(dto.discount_details),
-			paymentProvider: dto.payment_details.provider,
-			createdAt: dto.created_at,
-			updatedAt: dto.updated_at
+			paymentProvider: dto.payment_details?.provider
 		};
 	}
 

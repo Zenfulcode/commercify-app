@@ -27,19 +27,15 @@ export const load = async ({ params, locals }) => {
 			name: product.name,
 			description: product.description || '',
 			currency: product.price.currency,
-			categoryId: product.categoryId,
+			categoryId: product.categoryId || '',
 			images: product.images || [],
 			isActive: product.isActive ?? true,
 			variants: product.variants.map((variant: any) => ({
 				sku: variant.sku,
-				price: variant.price,
+				price: variant.price.amount,
 				stock: variant.stock || 0,
-				weight: variant.weight,
-				attributes:
-					variant.attributes?.map((attr: any) => ({
-						name: attr.name,
-						value: attr.value
-					})) || [],
+				weight: variant.weight || 0,
+				attributes: variant.attributes || {},
 				images: variant.images || [],
 				isDefault: variant.isDefault ?? false
 			}))

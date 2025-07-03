@@ -68,9 +68,14 @@ export class ApiUtils {
 		variant: Product['variants'][0],
 		attributeName: string
 	): string | undefined {
-		return variant.attributes.find(
-			(attr) => attr.name.toLowerCase() === attributeName.toLowerCase()
-		)?.value;
+		// Check if attributes exist and find the matching key (case-insensitive)
+		if (!variant.attributes) return undefined;
+
+		const attributeKey = Object.keys(variant.attributes).find(
+			(key) => key.toLowerCase() === attributeName.toLowerCase()
+		);
+
+		return attributeKey ? variant.attributes[attributeKey] : undefined;
 	}
 
 	/**
@@ -80,9 +85,11 @@ export class ApiUtils {
 		const attributeNames = new Set<string>();
 
 		product.variants.forEach((variant) => {
-			variant.attributes.forEach((attr) => {
-				attributeNames.add(attr.name);
-			});
+			if (variant.attributes) {
+				Object.keys(variant.attributes).forEach((attributeName) => {
+					attributeNames.add(attributeName);
+				});
+			}
 		});
 
 		return Array.from(attributeNames);
