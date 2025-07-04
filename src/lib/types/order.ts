@@ -10,6 +10,7 @@ export interface Order extends Checkout {
 	checkoutId: string; // Reference to the original checkout session
 	status: OrderStatus;
 	paymentDetails?: PaymentDetails;
+	createdAt: string; // ISO date string
 }
 
 export interface OrderSummary {

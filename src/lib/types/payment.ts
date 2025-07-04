@@ -16,7 +16,7 @@ export interface PaymentDetails {
 	status: PaymentStatus; // e.g., 'pending', 'completed', 'failed'
 	captured: boolean; // Whether the payment has been captured
 	refunded: boolean; // Whether the payment has been refunded
-	amout: Price;
+	amount: Price;
 	provider: PaymentProvider; // e.g., 'stripe', 'mobilepay'
 	events: {
 		type: 'charge' | 'capture' | 'refund';

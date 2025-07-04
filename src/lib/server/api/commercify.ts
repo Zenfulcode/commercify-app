@@ -52,7 +52,8 @@ import {
 	type AppliedDiscountDTO,
 	type CompleteCheckoutRequest,
 	type CheckoutCompleteResponse,
-	type OrderSummaryDTO
+	type OrderSummaryDTO,
+	type PaymentDetails
 } from './index';
 import type {
 	Address,
@@ -63,7 +64,6 @@ import type {
 } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
 import type { CommercifyUser } from '$lib/types/user';
-import { boolean } from 'zod/v4';
 
 export class CommercifyClient {
 	private baseUrl: string;
@@ -461,6 +461,8 @@ export class CommercifyClient {
 
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>(`/products/${productId}`);
+
+			console.log('Response from getProduct:', response.data?.variants);
 
 			if (response.success && response.data) {
 				return {
@@ -1038,14 +1040,25 @@ export class CommercifyClient {
 	 * Map API variant response to our ProductVariant interface
 	 */
 	private mapApiVariantToVariant(apiVariant: VariantDTO): ProductVariant {
-		// Convert attributes array back to key-value object
+		// Handle attributes - they can come in different formats
 		const attributes: { [key: string]: string } = {};
-		if (apiVariant.attributes && Array.isArray(apiVariant.attributes)) {
-			apiVariant.attributes.forEach((attr: any) => {
-				if (attr.name && attr.value) {
-					attributes[attr.name] = attr.value;
+
+		if (apiVariant.attributes) {
+			if (Array.isArray(apiVariant.attributes)) {
+				// Handle array format: [{ name: 'Size', value: 'Large' }]
+				apiVariant.attributes.forEach((attr: any) => {
+					if (attr.name && attr.value) {
+						attributes[attr.name] = attr.value;
+					}
+				});
+			} else if (typeof apiVariant.attributes === 'object' && apiVariant.attributes !== null) {
+				// Handle object format: { Size: 'Large' }
+				for (const [key, value] of Object.entries(apiVariant.attributes)) {
+					if (typeof value === 'string') {
+						attributes[key] = value;
+					}
 				}
-			});
+			}
 		}
 
 		return {
@@ -1666,6 +1679,7 @@ export class CommercifyClient {
 				email: dto.customer.email,
 				phone: dto.customer.phone
 			},
+			createdAt: dto.created_at,
 			items: dto.items.map((item) => ({
 				productName: item.product_name,
 				variantName: item.variant_name,
@@ -1679,7 +1693,24 @@ export class CommercifyClient {
 				? this.mapShippingDetails(dto.shipping_details)
 				: undefined,
 			discountDetails: this.mapDiscountDetails(dto.discount_details),
-			paymentProvider: dto.payment_details?.provider
+			paymentProvider: dto.payment_details?.provider,
+			paymentDetails: dto.payment_details
+				? {
+						paymentId: dto.payment_details.payment_id || '',
+						method: dto.payment_details.method as 'credit_card' | 'wallet',
+						status: dto.payment_details.status as PaymentStatus,
+						captured: dto.payment_details.status === 'captured',
+						refunded: dto.payment_details.status === 'refunded',
+						amount: {
+							amount: dto.total_amount,
+							currency: dto.currency
+						},
+						provider: dto.payment_details.provider as 'stripe' | 'mobilepay',
+						events: [], // Events would need to be mapped if available in the DTO
+						createdAt: dto.created_at,
+						updatedAt: dto.updated_at
+					}
+				: undefined
 		};
 	}
 
@@ -1707,10 +1738,46 @@ export class CommercifyClient {
 	async getOrders(
 		params: OrderSearchRequest
 	): Promise<{ success: boolean; data?: PaginatedData<OrderSummary>; error?: string }> {
-		return {
-			success: false,
-			error: 'This method is not implemented yet. Please check back later.'
-		};
+		const queryParams = new URLSearchParams();
+		if (params.pagination.page) queryParams.append('page', String(params.pagination.page));
+		if (params.pagination.page_size)
+			queryParams.append('pageSize', String(params.pagination.page_size));
+		// if (params.status) queryParams.append('status', params.status);
+		// if (params.payment_status) queryParams.append('paymentStatus', params.payment_status);
+
+		try {
+			const response = await this.request<ListResponseDTO<OrderSummaryDTO>>(
+				`/admin/orders?${queryParams.toString()}`
+			);
+
+			console.log('Orders response:', response);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to retrieve order'
+				};
+			}
+
+			const orders = response.data.map((order) => this.mapOrderSummary(order));
+			const pagination = this.mapPaginationData(response.pagination);
+			return {
+				success: true,
+				data: {
+					items: orders,
+					pagination
+				}
+			};
+		} catch (error) {
+			console.error(
+				'Error fetching orders:',
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: 'Failed to fetch orders'
+			};
+		}
 	}
 
 	async getOrderById(orderId: string): Promise<{ success: boolean; data?: Order; error?: string }> {
@@ -1746,6 +1813,151 @@ export class CommercifyClient {
 				error: `Error fetching order ${orderId}: ${
 					error instanceof Error ? error.message : String(error)
 				}`
+			};
+		}
+	}
+
+	/**
+	 * Capture an authorized payment for an order
+	 */
+	async captureOrderPayment(orderId: string): Promise<{
+		success: boolean;
+		data?: Order;
+		error?: string;
+	}> {
+		if (!orderId) {
+			return {
+				success: false,
+				error: 'Order ID is required'
+			};
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<OrderDTO>>(
+				`/admin/orders/${orderId}/capture`,
+				{
+					method: 'POST'
+				}
+			);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to capture payment'
+				};
+			}
+
+			return {
+				success: true,
+				data: this.mapOrder(response.data)
+			};
+		} catch (error) {
+			console.error(
+				`Error capturing payment for order ${orderId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Failed to capture payment: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
+		}
+	}
+
+	/**
+	 * Refund a captured payment for an order
+	 */
+	async refundOrderPayment(
+		orderId: string,
+		amount?: number
+	): Promise<{
+		success: boolean;
+		data?: Order;
+		error?: string;
+	}> {
+		if (!orderId) {
+			return {
+				success: false,
+				error: 'Order ID is required'
+			};
+		}
+
+		try {
+			const requestBody = amount ? { amount } : {};
+			const response = await this.request<ResponseDTO<OrderDTO>>(
+				`/admin/orders/${orderId}/refund`,
+				{
+					method: 'POST',
+					body: amount ? JSON.stringify(requestBody) : undefined
+				}
+			);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to refund payment'
+				};
+			}
+
+			return {
+				success: true,
+				data: this.mapOrder(response.data)
+			};
+		} catch (error) {
+			console.error(
+				`Error refunding payment for order ${orderId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Failed to refund payment: ${error instanceof Error ? error.message : String(error)}`
+			};
+		}
+	}
+
+	/**
+	 * Cancel an order and its associated payment
+	 */
+	async cancelOrder(orderId: string): Promise<{
+		success: boolean;
+		data?: Order;
+		error?: string;
+	}> {
+		if (!orderId) {
+			return {
+				success: false,
+				error: 'Order ID is required'
+			};
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<OrderDTO>>(
+				`/admin/orders/${orderId}/cancel`,
+				{
+					method: 'POST'
+				}
+			);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to cancel order'
+				};
+			}
+
+			return {
+				success: true,
+				data: this.mapOrder(response.data)
+			};
+		} catch (error) {
+			console.error(
+				`Error cancelling order ${orderId}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Failed to cancel order: ${error instanceof Error ? error.message : String(error)}`
 			};
 		}
 	}

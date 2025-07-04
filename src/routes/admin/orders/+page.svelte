@@ -128,8 +128,10 @@
 											</DropdownMenu.Trigger>
 											<DropdownMenu.Content align="end">
 												<DropdownMenu.Item>
-													<Eye class="mr-2 h-4 w-4" />
-													View Details
+													<a href="/admin/orders/{order.id}" class="flex items-center w-full">
+														<Eye class="mr-2 h-4 w-4" />
+														View Details
+													</a>
 												</DropdownMenu.Item>
 												<DropdownMenu.Item>
 													<Package class="mr-2 h-4 w-4" />
