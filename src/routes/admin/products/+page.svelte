@@ -23,11 +23,25 @@
 		DropdownMenuItem,
 		DropdownMenuTrigger
 	} from '$lib/components/ui/dropdown-menu';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Package, Plus, Search, MoreHorizontal, Edit, Trash2, Eye } from 'lucide-svelte';
 	import { formatCurrency, getStockStatus } from '$lib';
+	import { enhance } from '$app/forms';
+	import { invalidate } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
 	let searchQuery = $state('');
+	let productToDelete: { id: number; name: string } | null = $state(null);
+	let isDeleting = $state(false);
+
+	function openDeleteDialog(product: { id: number; name: string }) {
+		productToDelete = product;
+	}
+
+	function closeDeleteDialog() {
+		productToDelete = null;
+	}
 </script>
 
 <div class="space-y-6">
@@ -151,8 +165,14 @@
 												</a>
 											</DropdownMenuItem>
 											<DropdownMenuItem class="text-destructive">
-												<Trash2 class="h-4 w-4 mr-2" />
-												Delete
+												<button
+													type="button"
+													class="flex items-center gap-2 w-full"
+													onclick={() => openDeleteDialog({ id: product.id, name: product.name })}
+												>
+													<Trash2 class="h-4 w-4" />
+													Delete
+												</button>
 											</DropdownMenuItem>
 										</DropdownMenuContent>
 									</DropdownMenu>
@@ -205,3 +225,46 @@
 		</CardContent>
 	</Card>
 </div>
+
+<!-- Delete Confirmation Dialog -->
+<AlertDialog.Root open={productToDelete !== null}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete Product</AlertDialog.Title>
+			<AlertDialog.Description>
+				Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone and will permanently remove the product from your catalog.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel onclick={closeDeleteDialog}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action 
+				class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+				disabled={isDeleting}
+			>
+				<form 
+					method="POST" 
+					action="?/delete"
+					use:enhance={() => {
+						isDeleting = true;
+						return async ({ result }) => {
+							isDeleting = false;
+							if (result.type === 'success') {
+								toast.success('Product deleted successfully');
+								closeDeleteDialog();
+								// Invalidate the products dependency to refresh data
+								invalidate('products');
+							} else if (result.type === 'failure') {
+								toast.error((result.data as any)?.error || 'Failed to delete product');
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="productId" value={productToDelete?.id.toString()} />
+					<button type="submit" disabled={isDeleting} class="w-full">
+						{isDeleting ? 'Deleting...' : 'Delete Product'}
+					</button>
+				</form>
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

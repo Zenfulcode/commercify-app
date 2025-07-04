@@ -1,7 +1,11 @@
 import type { PaginatedData } from '$lib/types';
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad, Actions } from './$types';
+import { fail } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, depends }) => {
+	// Make this load function depend on 'products' so we can invalidate it
+	depends('products');
+	
 	const commercify = locals.commercify;
 
 	const data = await commercify.getProducts({
@@ -26,4 +30,34 @@ export const load: PageServerLoad = async ({ locals }) => {
 		products: data.data.items,
 		pagination: data.data.pagination
 	};
+};
+
+export const actions: Actions = {
+	delete: async ({ request, locals }) => {
+		const { commercify } = locals;
+		const data = await request.formData();
+		const productId = data.get('productId') as string;
+
+		if (!productId) {
+			return fail(400, { error: 'Product ID is required' });
+		}
+
+		console.log('Deleting product:', productId);
+
+		const result = await commercify.deleteProduct(productId);
+
+		if (!result.success) {
+			console.error('Error deleting product:', result.error);
+			return fail(400, {
+				error: result.error || 'Failed to delete product'
+			});
+		}
+
+		console.log('Product deleted successfully:', result.data);
+		
+		return { 
+			success: true, 
+			message: 'Product deleted successfully' 
+		};
+	}
 };

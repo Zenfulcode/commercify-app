@@ -157,7 +157,7 @@
 	</div>
 
 	<!-- Debug Panel (remove in production) -->
-	<SuperDebug data={$formData} />
+	<!-- <SuperDebug data={$formData} /> -->
 
 	<form method="POST" use:enhance class="space-y-6">
 		<div class="grid gap-6 lg:grid-cols-3">
