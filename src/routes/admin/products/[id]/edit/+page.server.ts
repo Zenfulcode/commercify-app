@@ -2,8 +2,7 @@ import type { Actions } from '@sveltejs/kit';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { productSchema, productVariantSchema } from '$lib/schemas/product.schema';
-import type { CreateProductVariantInput } from '$lib/types/product.js';
+import { productSchema } from '$lib/schemas/product.schema';
 
 export const load = async ({ params, locals }) => {
 	const productId = params.id;
@@ -110,65 +109,9 @@ export const actions: Actions = {
 		}
 
 		console.log('Product updated successfully:', result.data);
+		
+		// Invalidate all cached data to ensure fresh product data is loaded
+		// This will refresh the product list, product details, and any other cached data
 		redirect(303, '/admin/products');
-	},
-	removeVariant: async ({ request, params, locals }) => {
-		const productId = params.id;
-		if (!productId) {
-			return fail(400, { error: 'Product ID is required' });
-		}
-		const { commercify } = locals;
-		const formData = await request.formData();
-		const variantId = formData.get('variantId') as string;
-		if (!variantId) {
-			return fail(400, { error: 'Variant ID is required' });
-		}
-		try {
-			const result = await commercify.deleteProductVariant(productId, variantId);
-			if (!result.success) {
-				console.error('Error removing product variant:', result.error);
-				return fail(400, {
-					error: result.error || 'Failed to remove product variant'
-				});
-			}
-			console.log('Product variant removed successfully:', result.data);
-			redirect(303, `/admin/products/${productId}/edit`);
-		} catch (error) {
-			console.error('Error removing product variant:', error);
-			return fail(500, { error: 'Failed to remove product variant' });
-		}
-	},
-	addVariant: async ({ request, params, locals }) => {
-		const productId = params.id;
-		if (!productId) {
-			return fail(400, { error: 'Product ID is required' });
-		}
-		const { commercify } = locals;
-		const form = await superValidate(request, zod(productVariantSchema));
-		if (!form.valid) {
-			return fail(400, { form });
-		}
-		console.log('Adding product variant with data:', form.data);
-
-		const input: CreateProductVariantInput = {
-			sku: form.data.sku,
-			price: form.data.price,
-			stock: form.data.stock || 0,
-			weight: form.data.weight || 0,
-			attributes: form.data.attributes || {},
-			images: form.data.images || [],
-			isDefault: form.data.isDefault || false
-		};
-
-		const result = await commercify.addProductVariant(productId, input);
-		if (!result.success) {
-			console.error('Error adding product variant:', result.error);
-			return fail(400, {
-				form,
-				error: result.error || 'Failed to add product variant'
-			});
-		}
-		console.log('Product variant added successfully:', result.data);
-		redirect(303, `/admin/products/${productId}/edit`);
 	}
 };

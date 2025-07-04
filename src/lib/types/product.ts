@@ -39,15 +39,6 @@ export interface Currency {
 	updatedAt: string | null;
 }
 
-export interface UpdateProductVariantInput {
-	sku?: string;
-	price?: number /* float64 */;
-	stock?: number /* int */;
-	attributes?: { [key: string]: string };
-	images?: string[];
-	isDefault?: boolean;
-}
-
 export interface CreateProductVariantInput {
 	sku: string;
 	price: number /* float64 */;
@@ -66,15 +57,6 @@ export interface CreateProductInput {
 	images?: string[];
 	isActive: boolean;
 	variants?: CreateProductVariantInput[];
-}
-
-export interface UpdateProductInput {
-	name?: string;
-	description?: string;
-	currency?: string;
-	categoryId?: string;
-	images?: string[];
-	isActive?: boolean;
 }
 
 export interface Category {
@@ -97,3 +79,6 @@ export interface UpdateCategoryInput {
 	description?: string;
 	parentId?: string | null;
 }
+
+export type UpdateProductInput = Partial<CreateProductInput>;
+export type UpdateProductVariantInput = Partial<CreateProductVariantInput>;

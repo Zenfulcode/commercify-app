@@ -42,6 +42,7 @@ import {
 	type DiscountDTO,
 	type UserLoginResponse,
 	type CreateProductRequest,
+	type UpdateProductRequest,
 	type CategoryDTO,
 	type CreateCategoryRequest,
 	type UpdateCategoryRequest,
@@ -62,6 +63,7 @@ import type {
 } from '$lib/types/checkout';
 import type { CreateDiscount, Discount } from '$lib/types/discount';
 import type { CommercifyUser } from '$lib/types/user';
+import { boolean } from 'zod/v4';
 
 export class CommercifyClient {
 	private baseUrl: string;
@@ -506,6 +508,7 @@ export class CommercifyClient {
 		if (params.page) searchParams.append('page', params.page.toString());
 		if (params.page_size) searchParams.append('page_size', params.page_size.toString());
 		if (params.currency) searchParams.append('currency', params.currency);
+		searchParams.append('active', 'all');
 
 		const endpoint = `/admin/products?${searchParams.toString()}`;
 
@@ -671,10 +674,34 @@ export class CommercifyClient {
 				error: 'No product ID provided'
 			};
 		}
+
+		console.log('Editing product:', { productId, data });
+
+		// Transform data to match API expectations
+		const apiData: UpdateProductRequest = {
+			name: data.name,
+			description: data.description,
+			currency: data.currency,
+			category_id: data.categoryId ? parseInt(data.categoryId) : undefined,
+			images: data.images,
+			active: data.isActive,
+			variants: data.variants?.map((variant) => ({
+				sku: variant.sku,
+				price: variant.price,
+				stock: variant.stock,
+				weight: variant.weight,
+				attributes: variant.attributes
+					? Object.entries(variant.attributes).map(([name, value]) => ({ name, value }))
+					: undefined,
+				images: variant.images,
+				is_default: variant.isDefault
+			}))
+		};
+
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>(`/admin/products/${productId}`, {
 				method: 'PUT',
-				body: JSON.stringify(data)
+				body: JSON.stringify(apiData)
 			});
 			if (response.success && response.data) {
 				return {
@@ -1795,8 +1822,6 @@ export class CommercifyClient {
 	}> {
 		try {
 			const response = await this.request<ListResponseDTO<CategoryDTO>>('/categories');
-
-			console.log('Categories response:', response);
 
 			if (!response.success || !response.data) {
 				return {

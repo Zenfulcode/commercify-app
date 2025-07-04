@@ -16,6 +16,7 @@
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import type { Category, Currency } from '$lib/types';
+	import { invalidate } from '$app/navigation';
 
 	let {
 		data
@@ -37,6 +38,15 @@
 				toast.success('Product updated successfully!');
 			} else {
 				toast.error('Please fix the errors in the form.');
+			}
+		},
+		onResult: ({ result }) => {
+			// Invalidate product-related cached data after successful product update
+			// This ensures product lists, details, and any other cached data are refreshed
+			if (result.type === 'redirect') {
+				// Invalidate specific product-related routes for better performance
+				invalidate('/admin/products');
+				invalidate(`/admin/products/${data.productId}`);
 			}
 		}
 	});
@@ -375,46 +385,66 @@
 
 									<!-- Basic Variant Info -->
 									<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-										<div>
-											<label class="text-sm font-medium">SKU</label>
-											<Input
-												bind:value={$formData.variants[variantIndex].sku}
-												placeholder="Enter SKU"
-												class="mt-1"
-											/>
-										</div>
-										<div>
-											<label class="text-sm font-medium">Price ({selectedCurrency})</label>
-											<Input
-												type="number"
-												step="0.01"
-												min="0"
-												bind:value={$formData.variants[variantIndex].price}
-												placeholder="0.00"
-												class="mt-1"
-											/>
-										</div>
-										<div>
-											<label class="text-sm font-medium">Stock</label>
-											<Input
-												type="number"
-												min="0"
-												bind:value={$formData.variants[variantIndex].stock}
-												placeholder="0"
-												class="mt-1"
-											/>
-										</div>
-										<div>
-											<label class="text-sm font-medium">Weight (kg)</label>
-											<Input
-												type="number"
-												step="0.01"
-												min="0"
-												bind:value={$formData.variants[variantIndex].weight}
-												placeholder="0.00"
-												class="mt-1"
-											/>
-										</div>
+										<Form.Field {form} name="variants[{variantIndex}].sku">
+											<Form.Control>
+												{#snippet children({ props })}
+													<Form.Label>SKU</Form.Label>
+													<Input
+														{...props}
+														bind:value={$formData.variants[variantIndex].sku}
+														placeholder="Enter SKU"
+													/>
+												{/snippet}
+											</Form.Control>
+											<Form.FieldErrors />
+										</Form.Field>
+										<Form.Field {form} name="variants[{variantIndex}].price">
+											<Form.Control>
+												{#snippet children({ props })}
+													<Form.Label>Price ({selectedCurrency})</Form.Label>
+													<Input
+														{...props}
+														type="number"
+														step="0.01"
+														min="0"
+														bind:value={$formData.variants[variantIndex].price}
+														placeholder="0.00"
+													/>
+												{/snippet}
+											</Form.Control>
+											<Form.FieldErrors />
+										</Form.Field>
+										<Form.Field {form} name="variants[{variantIndex}].stock">
+											<Form.Control>
+												{#snippet children({ props })}
+													<Form.Label>Stock</Form.Label>
+													<Input
+														{...props}
+														type="number"
+														min="0"
+														bind:value={$formData.variants[variantIndex].stock}
+														placeholder="0"
+													/>
+												{/snippet}
+											</Form.Control>
+											<Form.FieldErrors />
+										</Form.Field>
+										<Form.Field {form} name="variants[{variantIndex}].weight">
+											<Form.Control>
+												{#snippet children({ props })}
+													<Form.Label>Weight (kg)</Form.Label>
+													<Input
+														{...props}
+														type="number"
+														step="0.01"
+														min="0"
+														bind:value={$formData.variants[variantIndex].weight}
+														placeholder="0.00"
+													/>
+												{/snippet}
+											</Form.Control>
+											<Form.FieldErrors />
+										</Form.Field>
 									</div>
 								</div>
 							{/each}
@@ -431,10 +461,10 @@
 						<Card.Title>Actions</Card.Title>
 					</Card.Header>
 					<Card.Content class="space-y-4">
-						<Button type="submit" class="w-full" disabled={$submitting}>
+						<Form.Button type="submit" class="w-full" disabled={$submitting}>
 							<Save class="h-4 w-4 mr-2" />
 							{$submitting ? 'Updating...' : 'Update Product'}
-						</Button>
+						</Form.Button>
 						<Button type="button" variant="outline" class="w-full" href="/admin/products">
 							Cancel
 						</Button>
@@ -486,53 +516,83 @@
 				<div class="space-y-4">
 					<h3 class="font-medium">Basic Information</h3>
 					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<label class="text-sm font-medium">SKU</label>
-							<Input
-								bind:value={$formData.variants[activeVariantIndex].sku}
-								placeholder="Enter SKU"
-								class="mt-1"
-							/>
-						</div>
-						<div>
-							<label class="text-sm font-medium">Weight (kg)</label>
-							<Input
-								type="number"
-								step="0.01"
-								min="0"
-								bind:value={$formData.variants[activeVariantIndex].weight}
-								placeholder="0.00"
-								class="mt-1"
-							/>
-						</div>
+						<Form.Field {form} name="variants[{activeVariantIndex}].sku">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>SKU</Form.Label>
+									<Input
+										{...props}
+										bind:value={$formData.variants[activeVariantIndex].sku}
+										placeholder="Enter SKU"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+						<Form.Field {form} name="variants[{activeVariantIndex}].weight">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Weight (kg)</Form.Label>
+									<Input
+										{...props}
+										type="number"
+										step="0.01"
+										min="0"
+										bind:value={$formData.variants[activeVariantIndex].weight}
+										placeholder="0.00"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
 					</div>
 					<div class="grid grid-cols-2 gap-3">
-						<div>
-							<label class="text-sm font-medium">Price ({selectedCurrency})</label>
-							<Input
-								type="number"
-								step="0.01"
-								min="0"
-								bind:value={$formData.variants[activeVariantIndex].price}
-								placeholder="0.00"
-								class="mt-1"
-							/>
-						</div>
-						<div>
-							<label class="text-sm font-medium">Stock</label>
-							<Input
-								type="number"
-								min="0"
-								bind:value={$formData.variants[activeVariantIndex].stock}
-								placeholder="0"
-								class="mt-1"
-							/>
-						</div>
+						<Form.Field {form} name="variants[{activeVariantIndex}].price">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Price ({selectedCurrency})</Form.Label>
+									<Input
+										{...props}
+										type="number"
+										step="0.01"
+										min="0"
+										bind:value={$formData.variants[activeVariantIndex].price}
+										placeholder="0.00"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+						<Form.Field {form} name="variants[{activeVariantIndex}].stock">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Stock</Form.Label>
+									<Input
+										{...props}
+										type="number"
+										min="0"
+										bind:value={$formData.variants[activeVariantIndex].stock}
+										placeholder="0"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
 					</div>
-					<div class="flex items-center space-x-2">
-						<Checkbox bind:checked={$formData.variants[activeVariantIndex].isDefault} />
-						<label class="text-sm font-medium">Default variant</label>
-					</div>
+					<Form.Field {form} name="variants[{activeVariantIndex}].isDefault">
+						<Form.Control>
+							{#snippet children({ props })}
+								<div class="flex items-center space-x-2">
+									<Checkbox
+										{...props}
+										bind:checked={$formData.variants[activeVariantIndex].isDefault}
+									/>
+									<Form.Label class="text-sm font-medium">Default variant</Form.Label>
+								</div>
+							{/snippet}
+						</Form.Control>
+						<Form.FieldErrors />
+					</Form.Field>
 				</div>
 
 				<!-- Attributes -->
@@ -553,38 +613,46 @@
 					{#if Object.keys($formData.variants[activeVariantIndex].attributes).length > 0}
 						<div class="space-y-3">
 							{#each Object.entries($formData.variants[activeVariantIndex].attributes) as [attributeKey, attributeValue], index}
-								<div class="flex gap-2">
-									<Input
-										value={attributeKey}
-										placeholder="Name (e.g., Color)"
-										class="flex-1"
-										oninput={(e) => {
-											// Handle attribute key change
-											const target = e.target as HTMLInputElement;
-											const newKey = target?.value || '';
-											if (newKey !== attributeKey) {
-												// Remove old key and add new one
-												const oldValue =
-													$formData.variants[activeVariantIndex].attributes[attributeKey];
-												delete $formData.variants[activeVariantIndex].attributes[attributeKey];
-												$formData.variants[activeVariantIndex].attributes[newKey] = oldValue;
-												$formData.variants = [...$formData.variants];
-											}
-										}}
-									/>
-									<Input
-										bind:value={$formData.variants[activeVariantIndex].attributes[attributeKey]}
-										placeholder="Value (e.g., Red)"
-										class="flex-1"
-									/>
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										onclick={() => removeVariantAttribute(activeVariantIndex, attributeKey)}
-									>
-										<Trash2 class="h-4 w-4" />
-									</Button>
+								<div class="space-y-2">
+									<div class="flex gap-2">
+										<div class="flex-1 space-y-1">
+											<Form.Label class="text-xs text-muted-foreground">Attribute Name</Form.Label>
+											<Input
+												value={attributeKey}
+												placeholder="Name (e.g., Color)"
+												oninput={(e) => {
+													// Handle attribute key change
+													const target = e.target as HTMLInputElement;
+													const newKey = target?.value || '';
+													if (newKey !== attributeKey) {
+														// Remove old key and add new one
+														const oldValue =
+															$formData.variants[activeVariantIndex].attributes[attributeKey];
+														delete $formData.variants[activeVariantIndex].attributes[attributeKey];
+														$formData.variants[activeVariantIndex].attributes[newKey] = oldValue;
+														$formData.variants = [...$formData.variants];
+													}
+												}}
+											/>
+										</div>
+										<div class="flex-1 space-y-1">
+											<Form.Label class="text-xs text-muted-foreground">Attribute Value</Form.Label>
+											<Input
+												bind:value={$formData.variants[activeVariantIndex].attributes[attributeKey]}
+												placeholder="Value (e.g., Red)"
+											/>
+										</div>
+										<div class="pt-6">
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onclick={() => removeVariantAttribute(activeVariantIndex, attributeKey)}
+											>
+												<Trash2 class="h-4 w-4" />
+											</Button>
+										</div>
+									</div>
 								</div>
 							{/each}
 						</div>
