@@ -12,88 +12,95 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 		return fail(404, { error: 'Order ID is required' });
 	}
 
-	try {
-		const orderResult = await commercify.getOrderById(orderId);
+	const orderResult = await commercify.getOrderById(orderId);
 
-		if (!orderResult.success || !orderResult.data) {
-			console.error('Error fetching order:', orderResult.error);
-			return fail(404, {
-				error: orderResult.error || 'Order not found'
+	if (!orderResult.success || !orderResult.data) {
+		console.error('Error fetching order:', orderResult.error);
+		return fail(404, {
+			error: orderResult.error || 'Order not found'
+		});
+	}
+
+	return {
+		order: orderResult.data,
+		orderId
+	};
+};
+
+export const actions: Actions = {
+	capture: async ({ request, locals }) => {
+		const { commercify } = locals;
+		const data = await request.formData();
+		const paymentId = data.get('paymentId') as string;
+
+		if (!paymentId) {
+			return fail(400, { error: 'Payment ID is required' });
+		}
+
+		// Note: The API captures payment by orderId, but we validate paymentId from the form
+		const result = await commercify.captureOrderPayment(paymentId, {
+			isFull: true
+		});
+
+		if (!result.success) {
+			return fail(400, {
+				error: result.error || 'Failed to capture payment'
 			});
 		}
 
 		return {
-			order: orderResult.data,
-			orderId
+			success: true,
+			message: 'Payment captured successfully'
 		};
-	} catch (error) {
-		console.error('Error loading order:', error);
-		return fail(500, {
-			error: 'Failed to load order. Please try again later.'
-		});
-	}
-};
-
-export const actions: Actions = {
-	capture: async ({ params, locals }) => {
-		const { commercify } = locals;
-		const orderId = params.id;
-
-		if (!orderId) {
-			return fail(400, { error: 'Order ID is required' });
-		}
-
-		try {
-			const result = await commercify.captureOrderPayment(orderId);
-
-			if (!result.success) {
-				return fail(400, {
-					error: result.error || 'Failed to capture payment'
-				});
-			}
-
-			return {
-				success: true,
-				message: 'Payment captured successfully'
-			};
-		} catch (error) {
-			console.error('Error capturing payment:', error);
-			return fail(500, {
-				error: 'Failed to capture payment'
-			});
-		}
 	},
 
-	refund: async ({ params, locals }) => {
+	refund: async ({ locals, request }) => {
 		const { commercify } = locals;
-		const orderId = params.id;
+		const data = await request.formData();
+		const paymentId = data.get('paymentId') as string;
 
-		if (!orderId) {
+		if (!paymentId) {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		try {
-			const result = await commercify.refundOrderPayment(orderId);
+		const result = await commercify.refundOrderPayment(paymentId, { isFull: true });
 
-			if (!result.success) {
-				return fail(400, {
-					error: result.error || 'Failed to refund payment'
-				});
-			}
-
-			return {
-				success: true,
-				message: 'Payment refunded successfully'
-			};
-		} catch (error) {
-			console.error('Error refunding payment:', error);
-			return fail(500, {
-				error: 'Failed to refund payment'
+		if (!result.success) {
+			return fail(400, {
+				error: result.error || 'Failed to refund payment'
 			});
 		}
+
+		return {
+			success: true,
+			message: 'Payment refunded successfully'
+		};
 	},
 
-	cancel: async ({ params, locals }) => {
+	cancel: async ({ request, locals }) => {
+		const { commercify } = locals;
+		const data = await request.formData();
+		const paymentId = data.get('paymentId') as string;
+
+		if (!paymentId) {
+			return fail(400, { error: 'Order ID is required' });
+		}
+
+		const result = await commercify.cancelOrderPayment(paymentId);
+
+		if (!result.success) {
+			return fail(400, {
+				error: result.error || 'Failed to cancel payment'
+			});
+		}
+
+		return {
+			success: true,
+			message: 'Payment cancelled successfully'
+		};
+	},
+
+	ship: async ({ params, locals }) => {
 		const { commercify } = locals;
 		const orderId = params.id;
 
@@ -101,24 +108,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		try {
-			const result = await commercify.cancelOrder(orderId);
+		const result = await commercify.updateOrderStatus(orderId, 'shipped');
 
-			if (!result.success) {
-				return fail(400, {
-					error: result.error || 'Failed to cancel order'
-				});
-			}
-
-			return {
-				success: true,
-				message: 'Order cancelled successfully'
-			};
-		} catch (error) {
-			console.error('Error cancelling order:', error);
-			return fail(500, {
-				error: 'Failed to cancel order'
+		if (!result.success) {
+			return fail(400, {
+				error: result.error || 'Failed to mark order as shipped'
 			});
 		}
+
+		return {
+			success: true,
+			message: 'Order marked as shipped successfully'
+		};
 	}
 };

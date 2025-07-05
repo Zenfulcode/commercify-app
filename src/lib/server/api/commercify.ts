@@ -1,5 +1,6 @@
 import { EnvironmentConfig } from '../env';
 import type {
+	PaymentEventInput,
 	Category,
 	CreateCategoryInput,
 	CreateProductInput,
@@ -10,8 +11,10 @@ import type {
 	OrderSummary,
 	PaginatedData,
 	PaymentStatus,
+	PaymentTransaction,
 	Product,
 	ProductVariant,
+	TransactionStatus,
 	UpdateCategoryInput,
 	UpdateProductInput,
 	UpdateProductVariantInput
@@ -53,7 +56,8 @@ import {
 	type CompleteCheckoutRequest,
 	type CheckoutCompleteResponse,
 	type OrderSummaryDTO,
-	type PaymentDetails
+	type PaymentDetails,
+	type PaymentTransactionDTO
 } from './index';
 import type {
 	Address,
@@ -130,11 +134,11 @@ export class CommercifyClient {
 				headers['Cookie'] = this.cookies;
 			}
 
-			console.log('Making request to:', url, {
-				headers: Object.keys(headers),
-				hasAuthHeader: !!headers['Authorization'],
-				origin: headers['Origin']
-			});
+			// console.log('Making request to:', url, {
+			// 	headers: Object.keys(headers),
+			// 	hasAuthHeader: !!headers['Authorization'],
+			// 	origin: headers['Origin']
+			// });
 
 			const response = await fetch(url, {
 				headers,
@@ -235,7 +239,6 @@ export class CommercifyClient {
 				}
 			};
 		} catch (error) {
-			console.error('Error validating access token:', error);
 			return { success: false, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
@@ -462,8 +465,6 @@ export class CommercifyClient {
 		try {
 			const response = await this.request<ResponseDTO<ProductDTO>>(`/products/${productId}`);
 
-			console.log('Response from getProduct:', response.data?.variants);
-
 			if (response.success && response.data) {
 				return {
 					success: true,
@@ -676,8 +677,6 @@ export class CommercifyClient {
 				error: 'No product ID provided'
 			};
 		}
-
-		console.log('Editing product:', { productId, data });
 
 		// Transform data to match API expectations
 		const apiData: UpdateProductRequest = {
@@ -1003,9 +1002,11 @@ export class CommercifyClient {
 			};
 		}
 
+		const totalPages = dto.page_size > 0 ? Math.ceil(dto.total / dto.page_size) : 0;
+
 		return {
 			currentPage: dto.page,
-			totalPages: dto.page_size / dto.total,
+			totalPages,
 			totalItems: dto.total,
 			itemsPerPage: dto.page_size
 		};
@@ -1602,8 +1603,6 @@ export class CommercifyClient {
 		};
 		error?: string;
 	}> {
-		console.log('Converting checkout to order with input:', input);
-
 		const requestBody: CompleteCheckoutRequest = {
 			payment_provider: input.provider,
 			payment_data: {}
@@ -1622,8 +1621,6 @@ export class CommercifyClient {
 				phone_number: input.phoneNumber!
 			};
 		}
-
-		console.log('Complete checkout request body:', requestBody);
 
 		try {
 			const response = await this.request<ResponseDTO<CheckoutCompleteResponse>>(
@@ -1663,6 +1660,9 @@ export class CommercifyClient {
 	}
 
 	mapOrder(dto: OrderDTO): Order {
+		// Extract payment details from transactions
+		const paymentDetails = this.extractPaymentDetailsFromTransactions(dto.payment_transactions);
+
 		return {
 			id: dto.id.toString(),
 			checkoutId: dto.checkout_id?.toString() || 'N/A',
@@ -1693,24 +1693,8 @@ export class CommercifyClient {
 				? this.mapShippingDetails(dto.shipping_details)
 				: undefined,
 			discountDetails: this.mapDiscountDetails(dto.discount_details),
-			paymentProvider: dto.payment_details?.provider,
-			paymentDetails: dto.payment_details
-				? {
-						paymentId: dto.payment_details.payment_id || '',
-						method: dto.payment_details.method as 'credit_card' | 'wallet',
-						status: dto.payment_details.status as PaymentStatus,
-						captured: dto.payment_details.status === 'captured',
-						refunded: dto.payment_details.status === 'refunded',
-						amount: {
-							amount: dto.total_amount,
-							currency: dto.currency
-						},
-						provider: dto.payment_details.provider as 'stripe' | 'mobilepay',
-						events: [], // Events would need to be mapped if available in the DTO
-						createdAt: dto.created_at,
-						updatedAt: dto.updated_at
-					}
-				: undefined
+			paymentDetails,
+			paymentTransactions: dto.payment_transactions?.map(this.mapPaymentTransaction.bind(this))
 		};
 	}
 
@@ -1735,32 +1719,127 @@ export class CommercifyClient {
 		};
 	}
 
+	mapPaymentTransaction(dto: PaymentTransactionDTO): PaymentTransaction {
+		return {
+			id: dto.id.toString(),
+			transactionId: dto.transaction_id,
+			externalId: dto.external_id,
+			type: dto.type as 'authorize' | 'capture' | 'refund' | 'cancel',
+			status: dto.status as TransactionStatus,
+			amount: dto.amount,
+			currency: dto.currency,
+			provider: dto.provider,
+			createdAt: dto.created_at,
+			updatedAt: dto.updated_at
+		};
+	}
+
+	/**
+	 * Extract payment details from payment transactions
+	 */
+	private extractPaymentDetailsFromTransactions(
+		transactions?: PaymentTransactionDTO[]
+	): import('$lib/types/payment').PaymentDetails | undefined {
+		if (!transactions || transactions.length === 0) {
+			return undefined;
+		}
+
+		// Sort transactions by creation date to get the most recent status
+		const sortedTransactions = transactions.sort(
+			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+		);
+
+		// Find the most recent successful authorize transaction to get payment ID
+		const authorizeTransaction = sortedTransactions.find(
+			(t) => t.type === 'authorize' && t.status === 'successful'
+		);
+
+		if (!authorizeTransaction) {
+			// If no authorize transaction, payment details cannot be determined
+			return undefined;
+		}
+
+		// Determine current payment status based on transaction history
+		const hasSuccessfulCapture = sortedTransactions.some(
+			(t) => t.type === 'capture' && t.status === 'successful'
+		);
+		const hasSuccessfulRefund = sortedTransactions.some(
+			(t) => t.type === 'refund' && t.status === 'successful'
+		);
+		const hasSuccessfulCancel = sortedTransactions.some(
+			(t) => t.type === 'cancel' && t.status === 'successful'
+		);
+
+		// Determine payment status based on transaction types
+		let status: PaymentStatus;
+		if (hasSuccessfulRefund) {
+			status = 'refunded';
+		} else if (hasSuccessfulCancel) {
+			status = 'cancelled';
+		} else if (hasSuccessfulCapture) {
+			status = 'captured';
+		} else {
+			status = 'authorized';
+		}
+
+		// Calculate total amount from authorize transactions
+		const totalAmount = sortedTransactions
+			.filter((t) => t.type === 'authorize' && t.status === 'successful')
+			.reduce((sum, t) => sum + t.amount, 0);
+
+		// Determine payment method from provider
+		const paymentMethod: 'credit_card' | 'wallet' =
+			authorizeTransaction.provider === 'mobilepay' ? 'wallet' : 'credit_card';
+
+		return {
+			paymentId: authorizeTransaction.external_id || authorizeTransaction.transaction_id,
+			method: paymentMethod,
+			status,
+			captured: hasSuccessfulCapture,
+			refunded: hasSuccessfulRefund,
+			amount: {
+				amount: totalAmount,
+				currency: authorizeTransaction.currency
+			},
+			provider: authorizeTransaction.provider as 'stripe' | 'mobilepay',
+			events: sortedTransactions
+				.filter((t) => t.status === 'successful')
+				.map((t) => ({
+					type: t.type === 'authorize' ? 'charge' : t.type === 'capture' ? 'capture' : 'refund',
+					amount: t.amount,
+					status: 'captured' as PaymentStatus // Map successful transactions to captured status
+				})),
+			createdAt: authorizeTransaction.created_at,
+			updatedAt: sortedTransactions[0]?.updated_at
+		};
+	}
+
 	async getOrders(
 		params: OrderSearchRequest
 	): Promise<{ success: boolean; data?: PaginatedData<OrderSummary>; error?: string }> {
 		const queryParams = new URLSearchParams();
 		if (params.pagination.page) queryParams.append('page', String(params.pagination.page));
-		if (params.pagination.page_size)
+		if (params.pagination.page_size) {
 			queryParams.append('pageSize', String(params.pagination.page_size));
+		}
 		// if (params.status) queryParams.append('status', params.status);
 		// if (params.payment_status) queryParams.append('paymentStatus', params.payment_status);
 
+		const endpoint = `/admin/orders?${queryParams.toString()}`;
+
 		try {
-			const response = await this.request<ListResponseDTO<OrderSummaryDTO>>(
-				`/admin/orders?${queryParams.toString()}`
-			);
-
-			console.log('Orders response:', response);
-
+			const response = await this.request<ListResponseDTO<OrderSummaryDTO>>(endpoint);
 			if (!response.success || !response.data) {
+				console.error('Failed to fetch orders:', response.error);
 				return {
 					success: false,
-					error: response.error || 'Failed to retrieve order'
+					error: response.error || 'Failed to retrieve orders'
 				};
 			}
 
 			const orders = response.data.map((order) => this.mapOrderSummary(order));
 			const pagination = this.mapPaginationData(response.pagination);
+
 			return {
 				success: true,
 				data: {
@@ -1780,6 +1859,60 @@ export class CommercifyClient {
 		}
 	}
 
+	async updateOrderStatus(
+		orderId: string,
+		status: OrderStatus
+	): Promise<{ success: boolean; data?: Order; error?: string }> {
+		if (!orderId) {
+			console.warn('No order ID provided, returning null');
+			return {
+				success: false,
+				error: 'No order ID provided'
+			};
+		}
+
+		if (!status) {
+			console.warn('No status provided, returning null');
+			return {
+				success: false,
+				error: 'No status provided'
+			};
+		}
+
+		try {
+			const response = await this.request<ResponseDTO<OrderDTO>>(
+				`/admin/orders/${orderId}/status`,
+				{
+					method: 'PUT',
+					body: JSON.stringify({ status })
+				}
+			);
+
+			if (!response.success || !response.data) {
+				return {
+					success: false,
+					error: response.error || 'Failed to update order status'
+				};
+			}
+
+			return {
+				success: true,
+				data: this.mapOrder(response.data)
+			};
+		} catch (error) {
+			console.error(
+				`Error updating order ${orderId} status to ${status}:`,
+				error instanceof Error ? error.message : String(error)
+			);
+			return {
+				success: false,
+				error: `Failed to update order status: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			};
+		}
+	}
+
 	async getOrderById(orderId: string): Promise<{ success: boolean; data?: Order; error?: string }> {
 		if (!orderId) {
 			console.warn('No order ID provided, returning null');
@@ -1790,7 +1923,9 @@ export class CommercifyClient {
 		}
 
 		try {
-			const response = await this.request<ResponseDTO<OrderDTO>>(`/orders/${orderId}`);
+			const response = await this.request<ResponseDTO<OrderDTO>>(
+				`/orders/${orderId}?include_payment_transactions=true`
+			);
 
 			if (!response.success || !response.data) {
 				return {
@@ -1820,23 +1955,32 @@ export class CommercifyClient {
 	/**
 	 * Capture an authorized payment for an order
 	 */
-	async captureOrderPayment(orderId: string): Promise<{
+	async captureOrderPayment(
+		paymentId: string,
+		input: PaymentEventInput
+	): Promise<{
 		success: boolean;
-		data?: Order;
+		data?: string;
 		error?: string;
 	}> {
-		if (!orderId) {
+		if (!paymentId) {
 			return {
 				success: false,
-				error: 'Order ID is required'
+				error: 'Payment Id is required'
 			};
 		}
 
+		const requestBody = {
+			is_full: input.isFull || false,
+			amount: input.amount || 0
+		};
+
 		try {
-			const response = await this.request<ResponseDTO<OrderDTO>>(
-				`/admin/orders/${orderId}/capture`,
+			const response = await this.request<ResponseDTO<string>>(
+				`/admin/payments/${paymentId}/capture`,
 				{
-					method: 'POST'
+					method: 'POST',
+					body: JSON.stringify(requestBody)
 				}
 			);
 
@@ -1849,18 +1993,16 @@ export class CommercifyClient {
 
 			return {
 				success: true,
-				data: this.mapOrder(response.data)
+				data: response.message || 'Payment refunded successfully'
 			};
 		} catch (error) {
 			console.error(
-				`Error capturing payment for order ${orderId}:`,
+				`Error capturing payment for order ${paymentId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
 			return {
 				success: false,
-				error: `Failed to capture payment: ${
-					error instanceof Error ? error.message : String(error)
-				}`
+				error: `Failed to capture payment: ${error instanceof Error ? error.message : String(error)}`
 			};
 		}
 	}
@@ -1869,27 +2011,31 @@ export class CommercifyClient {
 	 * Refund a captured payment for an order
 	 */
 	async refundOrderPayment(
-		orderId: string,
-		amount?: number
+		paymentId: string,
+		input: PaymentEventInput
 	): Promise<{
 		success: boolean;
-		data?: Order;
+		data?: string;
 		error?: string;
 	}> {
-		if (!orderId) {
+		if (!paymentId) {
 			return {
 				success: false,
 				error: 'Order ID is required'
 			};
 		}
 
+		const requestBody = {
+			is_full: input.isFull || false,
+			amount: input.amount || 0
+		};
+
 		try {
-			const requestBody = amount ? { amount } : {};
-			const response = await this.request<ResponseDTO<OrderDTO>>(
-				`/admin/orders/${orderId}/refund`,
+			const response = await this.request<ResponseDTO<string>>(
+				`/admin/payments/${paymentId}/refund`,
 				{
 					method: 'POST',
-					body: amount ? JSON.stringify(requestBody) : undefined
+					body: JSON.stringify(requestBody)
 				}
 			);
 
@@ -1902,11 +2048,11 @@ export class CommercifyClient {
 
 			return {
 				success: true,
-				data: this.mapOrder(response.data)
+				data: response.message || 'Payment refunded successfully'
 			};
 		} catch (error) {
 			console.error(
-				`Error refunding payment for order ${orderId}:`,
+				`Error refunding payment for order ${paymentId}:`,
 				error instanceof Error ? error.message : String(error)
 			);
 			return {
@@ -1919,9 +2065,9 @@ export class CommercifyClient {
 	/**
 	 * Cancel an order and its associated payment
 	 */
-	async cancelOrder(orderId: string): Promise<{
+	async cancelOrderPayment(orderId: string): Promise<{
 		success: boolean;
-		data?: Order;
+		data?: string;
 		error?: string;
 	}> {
 		if (!orderId) {
@@ -1933,7 +2079,7 @@ export class CommercifyClient {
 
 		try {
 			const response = await this.request<ResponseDTO<OrderDTO>>(
-				`/admin/orders/${orderId}/cancel`,
+				`/admin/payments/${orderId}/cancel`,
 				{
 					method: 'POST'
 				}
@@ -1948,7 +2094,7 @@ export class CommercifyClient {
 
 			return {
 				success: true,
-				data: this.mapOrder(response.data)
+				data: response.message || 'Payment refunded successfully'
 			};
 		} catch (error) {
 			console.error(

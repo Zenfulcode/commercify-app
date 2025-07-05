@@ -67,7 +67,6 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		console.log('Creating product with data:', form.data);
 		const result = await commercify.createProduct(form.data);
 
 		if (!result.success || !result.data) {
@@ -77,7 +76,6 @@ export const actions: Actions = {
 			});
 		}
 
-		console.log('Product created successfully:', result.data);
 		throw redirect(303, `/admin/products/${result.data.id.toString()}`);
 	}
 };

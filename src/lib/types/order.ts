@@ -1,6 +1,6 @@
 import type { Checkout, CheckoutItem } from './checkout';
 import type { Price } from './common';
-import type { PaymentDetails, PaymentStatus } from './payment';
+import type { PaymentDetails, PaymentStatus, PaymentTransaction } from './payment';
 
 export interface OrderItem extends CheckoutItem {}
 
@@ -10,6 +10,7 @@ export interface Order extends Checkout {
 	checkoutId: string; // Reference to the original checkout session
 	status: OrderStatus;
 	paymentDetails?: PaymentDetails;
+	paymentTransactions?: PaymentTransaction[];
 	createdAt: string; // ISO date string
 }
 

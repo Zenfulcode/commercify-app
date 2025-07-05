@@ -51,8 +51,6 @@ export const GET: RequestHandler = async ({ url }) => {
 			}
 		}
 
-		console.log('Performing simple health check');
-
 		// Simple health check
 		return json(
 			{

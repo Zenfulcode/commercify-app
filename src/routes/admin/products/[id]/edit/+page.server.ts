@@ -96,8 +96,6 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		console.log('Updating product with data:', form.data);
-
 		const result = await commercify.editProduct(productId, form.data);
 
 		if (!result.success) {
@@ -108,8 +106,6 @@ export const actions: Actions = {
 			});
 		}
 
-		console.log('Product updated successfully:', result.data);
-		
 		// Invalidate all cached data to ensure fresh product data is loaded
 		// This will refresh the product list, product details, and any other cached data
 		redirect(303, '/admin/products');

@@ -36,8 +36,6 @@
 				toast.error('Please fix the errors in the form.');
 			}
 
-			console.log('Form updated:', f);
-
 			if (f.message) {
 				toast.error(f.message || 'An unexpected error occurred.');
 			}
@@ -47,8 +45,6 @@
 	if (page.error) {
 		toast.error(page.error.message || 'An unexpected error occurred.');
 	}
-
-	console.log(page.error);
 
 	const { form: formData, enhance, submitting } = form;
 

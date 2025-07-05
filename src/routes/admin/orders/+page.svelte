@@ -133,16 +133,16 @@
 														View Details
 													</a>
 												</DropdownMenu.Item>
-												<DropdownMenu.Item>
+												<!-- <DropdownMenu.Item>
 													<Package class="mr-2 h-4 w-4" />
 													Ship Order
-												</DropdownMenu.Item>
-												<DropdownMenu.Item>
+												</DropdownMenu.Item> -->
+												<!-- <DropdownMenu.Item>
 													<CreditCard class="mr-2 h-4 w-4" />
 													Process Payment
 												</DropdownMenu.Item>
 												<DropdownMenu.Separator />
-												<DropdownMenu.Item class="text-red-600">Cancel Order</DropdownMenu.Item>
+												<DropdownMenu.Item class="text-red-600">Cancel Order</DropdownMenu.Item> -->
 											</DropdownMenu.Content>
 										</DropdownMenu.Root>
 									</Table.Cell>

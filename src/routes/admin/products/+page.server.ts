@@ -42,8 +42,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'Product ID is required' });
 		}
 
-		console.log('Deleting product:', productId);
-
 		const result = await commercify.deleteProduct(productId);
 
 		if (!result.success) {
@@ -53,8 +51,6 @@ export const actions: Actions = {
 			});
 		}
 
-		console.log('Product deleted successfully:', result.data);
-		
 		return { 
 			success: true, 
 			message: 'Product deleted successfully' 

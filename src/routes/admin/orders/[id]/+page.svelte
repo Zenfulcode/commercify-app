@@ -3,7 +3,13 @@
 	import { enhance } from '$app/forms';
 	import { invalidate } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -12,61 +18,84 @@
 	import type { Order, OrderStatus } from '$lib/types/order';
 	import type { PaymentStatus } from '$lib/types/payment';
 
-	export let data: PageData;
-	export let form: ActionData;
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	$: order = data.order as Order;
+	const order = $derived(data.order as Order);
 
 	// Business logic constraints for payment actions
-	$: canCapture = 
-		order?.status === 'shipped' && 
-		order?.paymentDetails?.status === 'authorized';
-	
-	$: canRefund = 
-		order?.paymentDetails?.status === 'captured';
-	
-	$: canCancel = 
-		order?.status === 'paid' && 
-		order?.paymentDetails?.status === 'authorized';
+	const canCapture = $derived(
+		order?.status === 'shipped' && order?.paymentDetails?.status === 'authorized'
+	);
+
+	const canRefund = $derived(order?.paymentDetails?.status === 'captured');
+
+	const canCancel = $derived(
+		order?.status === 'paid' && order?.paymentDetails?.status === 'authorized'
+	);
+
+	// Business logic for order status changes
+	const canMarkAsShipped = $derived(order?.status === 'paid');
 
 	// State for confirmation dialogs
-	let showCaptureDialog = false;
-	let showRefundDialog = false;
-	let showCancelDialog = false;
-	let isLoading = false;
+	let showCaptureDialog = $state(false);
+	let showRefundDialog = $state(false);
+	let showCancelDialog = $state(false);
+	let showShipDialog = $state(false);
+	let isLoading = $state(false);
 
-	function getStatusColor(status: OrderStatus): "default" | "destructive" | "outline" | "secondary" {
+	function getStatusColor(
+		status: OrderStatus
+	): 'default' | 'destructive' | 'outline' | 'secondary' {
 		switch (status) {
-			case 'pending': return 'secondary';
-			case 'paid': return 'default';
-			case 'shipped': return 'default';
-			case 'completed': return 'secondary';
-			case 'cancelled': return 'destructive';
-			default: return 'secondary';
+			case 'pending':
+				return 'secondary';
+			case 'paid':
+				return 'default';
+			case 'shipped':
+				return 'default';
+			case 'completed':
+				return 'secondary';
+			case 'cancelled':
+				return 'destructive';
+			default:
+				return 'secondary';
 		}
 	}
 
-	function getPaymentStatusColor(status: PaymentStatus): "default" | "destructive" | "outline" | "secondary" {
+	function getPaymentStatusColor(
+		status: PaymentStatus
+	): 'default' | 'destructive' | 'outline' | 'secondary' {
 		switch (status) {
-			case 'pending': return 'secondary';
-			case 'authorized': return 'default';
-			case 'captured': return 'secondary';
-			case 'refunded': return 'destructive';
-			case 'cancelled': return 'destructive';
-			case 'failed': return 'destructive';
-			default: return 'secondary';
+			case 'pending':
+				return 'secondary';
+			case 'authorized':
+				return 'default';
+			case 'captured':
+				return 'secondary';
+			case 'refunded':
+				return 'destructive';
+			case 'cancelled':
+				return 'destructive';
+			case 'failed':
+				return 'destructive';
+			default:
+				return 'secondary';
 		}
 	}
 
 	// Handle form responses
-	$: if (form?.success) {
-		toast.success(form.message || 'Action completed successfully');
-		invalidate('order');
-	}
+	$effect(() => {
+		if (form?.success) {
+			toast.success(form.message || 'Action completed successfully');
+			invalidate('order');
+		}
+	});
 
-	$: if (form?.error) {
-		toast.error(form.error);
-	}
+	$effect(() => {
+		if (form?.error) {
+			toast.error(form.error);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -175,7 +204,8 @@
 									<p>{order.shippingAddress.street2}</p>
 								{/if}
 								<p>
-									{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
+									{order.shippingAddress.city}, {order.shippingAddress.state}
+									{order.shippingAddress.postalCode}
 								</p>
 								<p>{order.shippingAddress.country}</p>
 							</div>
@@ -198,7 +228,8 @@
 									<p>{order.billingAddress.street2}</p>
 								{/if}
 								<p>
-									{order.billingAddress.city}, {order.billingAddress.state} {order.billingAddress.postalCode}
+									{order.billingAddress.city}, {order.billingAddress.state}
+									{order.billingAddress.postalCode}
 								</p>
 								<p>{order.billingAddress.country}</p>
 							</div>
@@ -227,19 +258,31 @@
 							{#if order.discountDetails && order.discountDetails.amount > 0}
 								<div class="flex justify-between text-green-600">
 									<span>Discount ({order.discountDetails.code}):</span>
-									<span>-{formatCurrency({ amount: order.discountDetails.amount, currency: order.currency })}</span>
+									<span
+										>-{formatCurrency({
+											amount: order.discountDetails.amount,
+											currency: order.currency
+										})}</span
+									>
 								</div>
 							{/if}
 							{#if order.shippingCost}
 								<div class="flex justify-between">
 									<span>Shipping:</span>
-									<span>{formatCurrency({ amount: order.shippingCost, currency: order.currency })}</span>
+									<span
+										>{formatCurrency({
+											amount: order.shippingCost,
+											currency: order.currency
+										})}</span
+									>
 								</div>
 							{/if}
 							<Separator />
 							<div class="flex justify-between font-medium text-lg">
 								<span>Total:</span>
-								<span>{formatCurrency({ amount: order.totalAmount, currency: order.currency })}</span>
+								<span
+									>{formatCurrency({ amount: order.totalAmount, currency: order.currency })}</span
+								>
 							</div>
 						</div>
 					</div>
@@ -247,7 +290,7 @@
 					<!-- Payment Actions -->
 					<div class="space-y-4">
 						<h4 class="font-medium">Payment Actions</h4>
-						
+
 						{#if order.paymentDetails}
 							<div class="space-y-2">
 								<p class="text-sm text-muted-foreground">
@@ -264,7 +307,7 @@
 								type="button"
 								class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
 								disabled={!canCapture || isLoading}
-								on:click={() => showCaptureDialog = true}
+								onclick={() => (showCaptureDialog = true)}
 							>
 								Capture Payment
 							</button>
@@ -273,7 +316,7 @@
 								type="button"
 								class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
 								disabled={!canRefund || isLoading}
-								on:click={() => showRefundDialog = true}
+								onclick={() => (showRefundDialog = true)}
 							>
 								Refund Payment
 							</button>
@@ -282,21 +325,82 @@
 								type="button"
 								class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-10 px-4 py-2"
 								disabled={!canCancel || isLoading}
-								on:click={() => showCancelDialog = true}
+								onclick={() => (showCancelDialog = true)}
 							>
 								Cancel Order
 							</button>
+
+							<button
+								type="button"
+								class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2"
+								disabled={!canMarkAsShipped || isLoading}
+								onclick={() => (showShipDialog = true)}
+							>
+								Mark as Shipped
+							</button>
 						</div>
 
-						{#if !canCapture && !canRefund && !canCancel}
-							<p class="text-sm text-muted-foreground">
-								No payment actions available for this order.
-							</p>
+						{#if !canCapture && !canRefund && !canCancel && !canMarkAsShipped}
+							<p class="text-sm text-muted-foreground">No actions available for this order.</p>
 						{/if}
 					</div>
 				</div>
 			</CardContent>
 		</Card>
+
+		<!-- Payment Transactions -->
+		{#if order.paymentTransactions && order.paymentTransactions.length > 0}
+			<Card>
+				<CardHeader>
+					<CardTitle>Payment Transactions</CardTitle>
+					<CardDescription>History of all payment transactions for this order</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div class="space-y-4">
+						{#each order.paymentTransactions as transaction}
+							<div class="flex items-center justify-between p-4 border rounded-lg">
+								<div class="flex-1">
+									<div class="flex items-center gap-2">
+										<h4 class="font-medium capitalize">{transaction.type}</h4>
+										<Badge
+											variant={transaction.status === 'successful'
+												? 'default'
+												: transaction.status === 'failed'
+													? 'destructive'
+													: 'secondary'}
+										>
+											{transaction.status}
+										</Badge>
+									</div>
+									<p class="text-sm text-muted-foreground">
+										Transaction ID: {transaction.transactionId}
+									</p>
+									{#if transaction.externalId}
+										<p class="text-sm text-muted-foreground">
+											External ID: {transaction.externalId}
+										</p>
+									{/if}
+									<p class="text-sm text-muted-foreground">Provider: {transaction.provider}</p>
+									<p class="text-sm text-muted-foreground">
+										{new Date(transaction.createdAt).toLocaleDateString()} at {new Date(
+											transaction.createdAt
+										).toLocaleTimeString()}
+									</p>
+								</div>
+								<div class="text-right">
+									<p class="font-medium">
+										{formatCurrency({
+											amount: transaction.amount,
+											currency: transaction.currency
+										})}
+									</p>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</CardContent>
+			</Card>
+		{/if}
 	{:else}
 		<Card>
 			<CardContent class="p-6">
@@ -313,19 +417,26 @@
 			<AlertDialog.Title>Capture Payment</AlertDialog.Title>
 			<AlertDialog.Description>
 				Are you sure you want to capture the payment for this order? This action cannot be undone.
-				The payment amount of {order ? formatCurrency({ amount: order.totalAmount, currency: order.currency }) : ''} will be captured.
+				The payment amount of {order
+					? formatCurrency({ amount: order.totalAmount, currency: order.currency })
+					: ''} will be captured.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form method="POST" action="?/capture" use:enhance={() => {
-				isLoading = true;
-				return async ({ update }) => {
-					isLoading = false;
-					showCaptureDialog = false;
-					await update();
-				};
-			}}>
+			<form
+				method="POST"
+				action="?/capture"
+				use:enhance={() => {
+					isLoading = true;
+					return async ({ update }) => {
+						isLoading = false;
+						showCaptureDialog = false;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="paymentId" value={order?.paymentDetails?.paymentId || ''} />
 				<AlertDialog.Action type="submit" disabled={isLoading}>
 					{isLoading ? 'Capturing...' : 'Capture Payment'}
 				</AlertDialog.Action>
@@ -341,19 +452,26 @@
 			<AlertDialog.Title>Refund Payment</AlertDialog.Title>
 			<AlertDialog.Description>
 				Are you sure you want to refund the payment for this order? This action cannot be undone.
-				The full payment amount of {order ? formatCurrency({ amount: order.totalAmount, currency: order.currency }) : ''} will be refunded.
+				The full payment amount of {order
+					? formatCurrency({ amount: order.totalAmount, currency: order.currency })
+					: ''} will be refunded.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form method="POST" action="?/refund" use:enhance={() => {
-				isLoading = true;
-				return async ({ update }) => {
-					isLoading = false;
-					showRefundDialog = false;
-					await update();
-				};
-			}}>
+			<form
+				method="POST"
+				action="?/refund"
+				use:enhance={() => {
+					isLoading = true;
+					return async ({ update }) => {
+						isLoading = false;
+						showRefundDialog = false;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="paymentId" value={order?.paymentDetails?.paymentId || ''} />
 				<AlertDialog.Action type="submit" disabled={isLoading}>
 					{isLoading ? 'Refunding...' : 'Refund Payment'}
 				</AlertDialog.Action>
@@ -368,22 +486,59 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>Cancel Order</AlertDialog.Title>
 			<AlertDialog.Description>
-				Are you sure you want to cancel this order? This action cannot be undone.
-				The order will be marked as cancelled and any authorized payment will be cancelled.
+				Are you sure you want to cancel this order? This action cannot be undone. The order will be
+				marked as cancelled and any authorized payment will be cancelled.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form method="POST" action="?/cancel" use:enhance={() => {
-				isLoading = true;
-				return async ({ update }) => {
-					isLoading = false;
-					showCancelDialog = false;
-					await update();
-				};
-			}}>
+			<form
+				method="POST"
+				action="?/cancel"
+				use:enhance={() => {
+					isLoading = true;
+					return async ({ update }) => {
+						isLoading = false;
+						showCancelDialog = false;
+						await update();
+					};
+				}}
+			>
+				<input type="hidden" name="paymentId" value={order?.paymentDetails?.paymentId || ''} />
 				<AlertDialog.Action type="submit" disabled={isLoading}>
 					{isLoading ? 'Cancelling...' : 'Cancel Order'}
+				</AlertDialog.Action>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<!-- Mark as Shipped Dialog -->
+<AlertDialog.Root bind:open={showShipDialog}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Mark Order as Shipped</AlertDialog.Title>
+			<AlertDialog.Description>
+				Are you sure you want to mark this order as shipped? This will update the order status to
+				"shipped" and notify the customer that their order has been dispatched.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<form
+				method="POST"
+				action="?/ship"
+				use:enhance={() => {
+					isLoading = true;
+					return async ({ update }) => {
+						isLoading = false;
+						showShipDialog = false;
+						await update();
+					};
+				}}
+			>
+				<AlertDialog.Action type="submit" disabled={isLoading}>
+					{isLoading ? 'Marking as Shipped...' : 'Mark as Shipped'}
 				</AlertDialog.Action>
 			</form>
 		</AlertDialog.Footer>
