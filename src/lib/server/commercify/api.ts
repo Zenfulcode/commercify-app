@@ -341,18 +341,26 @@ export class CachedCommercifyApiClient {
 					CACHE_TTL.CATEGORY
 				);
 			},
-			delete: (id: number) => {
-				const result = this.client.categories.delete(id);
-				return result;
-			},
-			update: (id: number, data: UpdateCategoryInput) => {
-				const requestData: UpdateCategoryRequest = {
+			update: async (id: number, data: any) => {
+				const requestData = {
 					name: data.name,
 					description: data.description || '',
 					parent_id: data.parentId ? parseInt(data.parentId) : undefined
 				};
 
-				const result = this.client.categories.update(id, requestData, categoryResponseMapper);
+				const result = await this.client.categories.update(id, requestData, categoryResponseMapper);
+
+				// Invalidate category caches after update
+				await CacheInvalidator.invalidateAllCategoryCaches(id);
+
+				return result;
+			},
+			delete: async (id: number) => {
+				const result = await this.client.categories.delete(id);
+
+				// Invalidate category caches after delete
+				await CacheInvalidator.invalidateAllCategoryCaches(id);
+
 				return result;
 			}
 		};

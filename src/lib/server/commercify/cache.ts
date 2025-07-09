@@ -222,6 +222,34 @@ export class CacheInvalidator {
 	static invalidateOrder(id: string): void {
 		OrderCache.invalidateOrder(id);
 	}
+
+	/**
+	 * Invalidates both client-side and server-side caches for a specific category
+	 */
+	static async invalidateCategory(id: string | number): Promise<void> {
+		const categoryId = id.toString();
+
+		// Server-side cache invalidation
+		serverCache.invalidate(`category:${categoryId}`);
+	}
+
+	/**
+	 * Invalidates all category-related caches (lists, etc.)
+	 */
+	static async invalidateCategoryLists(): Promise<void> {
+		// Server-side cache invalidation
+		serverCache.invalidatePattern('^categories');
+	}
+
+	/**
+	 * Invalidates both individual category and category lists caches
+	 */
+	static async invalidateAllCategoryCaches(id?: string | number): Promise<void> {
+		if (id !== undefined) {
+			await this.invalidateCategory(id);
+		}
+		await this.invalidateCategoryLists();
+	}
 }
 
 /**
