@@ -5,7 +5,6 @@ import { categorySchema } from '$lib/schemas/admin';
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
 import type { Category } from '$lib/types';
-import { ca } from 'zod/v4/locales';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { commercify } = locals;
@@ -20,7 +19,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const categories = categoriesResult.data || [];
-	const category = categories.find((c: Category) => c.id === categoryId);
+	const category = categories.find((c: Category) => String(c.id) === String(categoryId));
 
 	if (!category) {
 		throw error(404, 'Category not found');
@@ -39,7 +38,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		form,
 		category,
-		categories: categories.filter((c: Category) => c.id !== categoryId) // Exclude self from parent options
+		categories: categories.filter((c: Category) => String(c.id) !== String(categoryId)) // Exclude self from parent options
 	};
 };
 

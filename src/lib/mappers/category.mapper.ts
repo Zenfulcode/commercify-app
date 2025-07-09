@@ -1,12 +1,34 @@
 import type { Category } from '$lib/types';
 import type { CategoryDTO, ResponseDTO } from 'commercify-api-client';
 
-export const categoryResponseMapper = (dto: ResponseDTO<CategoryDTO>): Category | null => {
+export const categoryResponseMapper = (
+	dto: ResponseDTO<CategoryDTO>
+): {
+	data: Category | null;
+	success: boolean;
+	error?: string;
+} => {
 	if (!dto.data) {
-		return null;
+		return {
+			data: null,
+			success: false,
+			error: 'Category data is missing'
+		};
 	}
 
-	return categoryMapper(dto.data);
+	if (dto.error) {
+		return {
+			data: null,
+			success: false,
+			error: dto.error
+		};
+	}
+
+	return {
+		data: categoryMapper(dto.data),
+		success: true,
+		error: undefined
+	};
 };
 
 export const categoryListMapper = (dto: {

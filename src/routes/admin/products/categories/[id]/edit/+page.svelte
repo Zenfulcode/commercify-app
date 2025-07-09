@@ -14,8 +14,8 @@
 	import * as Form from '$lib/components/ui/form';
 	import * as Select from '$lib/components/ui/select';
 	import { ArrowLeft, Save } from 'lucide-svelte';
-	import { categorySchema } from '$lib/schemas/admin.js';
-	import { type Category } from '$lib/types/product.js';
+	import { categorySchema } from '$lib/schemas/admin';
+	import { type Category } from '$lib/types/product';
 
 	let { data } = $props();
 
@@ -81,13 +81,15 @@
 							<Select.Root type="single" bind:value={$formData.parentId} name={props.name}>
 								<Select.Trigger {...props}>
 									{$formData.parentId
-										? data.categories.find((c: Category) => c.id === $formData.parentId)?.name
+										? data.categories.find(
+												(c: Category) => String(c.id) === String($formData.parentId)
+											)?.name
 										: 'Select a parent category (optional)'}
 								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value="">No parent (top-level category)</Select.Item>
 									{#each data.categories as category}
-										<Select.Item value={category.id}>
+										<Select.Item value={String(category.id)}>
 											{category.name}
 										</Select.Item>
 									{/each}
