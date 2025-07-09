@@ -15,7 +15,7 @@
 	import { generateSKU } from '$lib/utils/admin';
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
-	import type { Category, Currency } from '$lib/types';
+	import type { Category, Currency, Product } from '$lib/types';
 	import { invalidate } from '$app/navigation';
 
 	let {
@@ -25,7 +25,7 @@
 			form: SuperValidated<Infer<ProductSchema>>;
 			currencies: Currency[];
 			categories: Category[];
-			product: any;
+			product: Product;
 			productId: string;
 		};
 	} = $props();
@@ -55,7 +55,7 @@
 
 	// Reactive variables
 	let categories = $state(data.categories || []);
-	let selectedCurrency = $state(data.product.currency);
+	let selectedCurrency = $state(data.product.price.currency);
 
 	// Sheet state for variant configuration
 	let isSheetOpen = $state(false);

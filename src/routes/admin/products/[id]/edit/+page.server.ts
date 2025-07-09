@@ -10,13 +10,11 @@ export const load = async ({ params, locals }) => {
 
 	try {
 		// Get the existing product data
-		const productResponse = await commercify.getProduct(productId);
+		const product = await commercify.products.get(productId);
 
-		if (!productResponse.success || !productResponse.data) {
+		if (!product) {
 			return fail(404, { error: 'Product not found' });
 		}
-
-		const product = productResponse.data;
 
 		// Transform product data to match form schema
 		const formData = {
@@ -42,9 +40,10 @@ export const load = async ({ params, locals }) => {
 
 		// Get currencies for the form
 		const [currenciesResult, categoriesResult] = await Promise.all([
-			commercify.getCurrencies(),
-			commercify.getCategories()
+			commercify.currencies.list(),
+			commercify.categories.list()
 		]);
+
 		if (!currenciesResult || !categoriesResult) {
 			console.error('Failed to fetch currencies or categories');
 			return fail(500, {
@@ -71,9 +70,9 @@ export const load = async ({ params, locals }) => {
 
 		return {
 			form,
-			currencies: currenciesResult.data?.items || [],
+			currencies: currenciesResult.data || [],
 			categories: categoriesResult.data || [],
-			product: productResponse.data,
+			product,
 			productId
 		};
 	} catch (error) {
@@ -84,19 +83,20 @@ export const load = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	default: async ({ request, params, locals }) => {
+		const { commercify } = locals;
+		
 		const productId = params.id;
 		if (!productId) {
 			return fail(400, { error: 'Product ID is required' });
 		}
 
-		const { commercify } = locals;
 		const form = await superValidate(request, zod(productSchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
-		const result = await commercify.editProduct(productId, form.data);
+		const result = await commercify.products.update(productId, form.data);
 
 		if (!result.success) {
 			console.error('Error updating product:', result.error);

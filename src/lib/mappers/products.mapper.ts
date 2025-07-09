@@ -1,11 +1,5 @@
-import type { Category, PaginatedData, Product, ProductVariant } from '$lib/types';
-import type {
-	CategoryDTO,
-	ListResponseDTO,
-	ProductDTO,
-	ResponseDTO,
-	VariantDTO
-} from 'commercify-api-client';
+import type { PaginatedData, Product, ProductVariant } from '$lib/types';
+import type { ListResponseDTO, ProductDTO, ResponseDTO, VariantDTO } from 'commercify-api-client';
 
 export const productMapper = (dto: ProductDTO): Product => {
 	return {
@@ -28,20 +22,38 @@ export const productMapper = (dto: ProductDTO): Product => {
 	};
 };
 
-export const productResponseMapper = (dto: ResponseDTO<ProductDTO>): Product | null => {
+export const productResponseMapper = (
+	dto: ResponseDTO<ProductDTO>
+): { data: Product | null; success: boolean; error?: string } => {
 	if (!dto.data) {
-		return null;
+		return {
+			data: null,
+			success: false,
+			error: 'Product data is missing in the response'
+		};
 	}
 
-	return productMapper(dto.data);
+	return {
+		data: productMapper(dto.data),
+		success: dto.success,
+		error: dto.error
+	};
 };
 
 export const productListMapper = (
 	dto: ListResponseDTO<ProductDTO>
-): { data: PaginatedData<Product> | null; success: boolean; error?: string } => {
+): { data: PaginatedData<Product>; success: boolean; error?: string } => {
 	if (!dto.data || !Array.isArray(dto.data)) {
 		return {
-			data: null,
+			data: {
+				items: [],
+				pagination: {
+					currentPage: 1,
+					totalPages: 0,
+					itemsPerPage: dto.pagination?.page_size || 0,
+					totalItems: 0
+				}
+			},
 			success: false,
 			error: 'Product data is missing or not in the expected format'
 		};
