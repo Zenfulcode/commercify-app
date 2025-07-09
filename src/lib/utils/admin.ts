@@ -12,7 +12,9 @@ export function generateSKU(
 		.substring(0, 8);
 
 	// Create attribute suffix from first letter of each attribute value
-	const attributeSuffix = Object.values(attributes).map((value) => value.charAt(0).toUpperCase()).join('');
+	const attributeSuffix = Object.values(attributes)
+		.map((value) => value.charAt(0).toUpperCase())
+		.join('');
 
 	// Generate random suffix for uniqueness
 	const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();

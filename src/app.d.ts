@@ -7,12 +7,12 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			commercify: CommercifyClient;
+			commercify: CachedCommercifyApiClient;
 			user?: {
 				email?: string;
 				name?: string;
 				role: 'admin';
-				accessToken: string;
+				// accessToken: string;
 			};
 		}
 		// interface PageData {}

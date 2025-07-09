@@ -4,6 +4,6 @@ export interface CommercifyUser {
 	firstName: string;
 	lastName: string;
 	role: 'admin' | 'user';
-	createdAt: string; // ISO date string
-	updatedAt: string; // ISO date string
+	createdAt: string | null; // ISO date string
+	updatedAt: string | null; // ISO date string
 }

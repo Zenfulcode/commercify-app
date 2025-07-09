@@ -1,3 +1,5 @@
+import type { ShippingOption } from './shipping';
+
 export interface CheckoutItem {
 	productName: string;
 	variantName?: string;
@@ -27,25 +29,22 @@ export interface Checkout {
 		fullName: string;
 		phone?: string;
 	};
-	shippingDetails?: {
-		shippingMethodId: number;
-		shippingMethodName: string;
-		shippingCost: number;
-		estimatedDelivery: string;
-	};
-	discountDetails?: {
-		code: string;
-		amount: number;
-		value: number;
-		type: 'percentage' | 'fixed';
-		method: 'basket' | 'item';
-	};
+	shippingDetails?: ShippingOption;
+	discountDetails?: DiscountDetails;
 	subtotal: number;
 	totalAmount: number;
 	shippingCost: number;
 	currency: string;
 	paymentProvider?: string; // e.g., 'stripe', 'mobilepay'
 	status: string; // e.g., 'pending', 'paid', 'shipped', 'completed', 'cancelled'
+}
+
+export interface DiscountDetails {
+	code: string;
+	amount: number;
+	value: number;
+	type: 'percentage' | 'fixed';
+	method: 'basket' | 'item';
 }
 
 export interface CompleteCheckoutInput {

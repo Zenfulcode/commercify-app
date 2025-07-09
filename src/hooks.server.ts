@@ -1,35 +1,21 @@
 import type { Handle } from '@sveltejs/kit';
-import { createCommercifyClient } from '$lib/server/api';
 import { sequence } from '@sveltejs/kit/hooks';
-import { env } from '$env/dynamic/private';
 import { redirect } from '@sveltejs/kit';
+import { CachedCommercifyApiClient, createApiClient } from '$lib/server/commercify/api';
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	// Check if the route requires admin authentication
 	if (event.url.pathname.startsWith('/admin')) {
-		const accessToken = event.cookies.get('access_token');
-
-		// If no access token, redirect to login immediately
-		if (!accessToken) {
-			throw redirect(303, '/login');
-		}
-
-		// Create commercify client to validate the token
-		const cookieString = event.cookies
-			.getAll()
-			.map((cookie) => `${cookie.name}=${cookie.value}`)
-			.join('; ');
-
-		const commercifyClient = createCommercifyClient(cookieString);
+		const { commercify } = event.locals;
 
 		// Validate the access token by calling getUser()
-		const userResponse = await commercifyClient.getUser();
+		const userResponse = await commercify.getUser();
 
 		if (!userResponse.success || !userResponse.data) {
 			console.log('Access token validation failed:', userResponse.error);
 
 			// Clear all auth-related cookies since token is invalid
-			event.cookies.delete('access_token', { path: '/' });
+			event.cookies.delete('auth_token', { path: '/' });
 			event.cookies.delete('user_role', { path: '/' });
 
 			throw redirect(303, '/login');
@@ -45,8 +31,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		event.locals.user = {
 			email: userResponse.data.email,
 			name: `${userResponse.data.firstName} ${userResponse.data.lastName}`,
-			role: userResponse.data.role as 'admin',
-			accessToken
+			role: userResponse.data.role as 'admin'
 		};
 	}
 
@@ -54,36 +39,13 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 };
 
 const handleCommercify: Handle = async ({ event, resolve }) => {
-	// Create commercify client with forwarded cookies and store in locals
-	const cookieString = event.cookies
-		.getAll()
-		.map((cookie) => `${cookie.name}=${cookie.value}`)
-		.join('; ');
+	// Get the auth token from a secure, httpOnly cookie
+	const authToken = event.cookies.get('auth_token');
 
-	event.locals.commercify = createCommercifyClient(cookieString);
-
-	// For shop routes, ensure we have a checkout session and set the cookie
-	if (event.url.pathname.startsWith('/shop')) {
-		try {
-			const checkoutResponse = await event.locals.commercify.getOrCreateCheckout('DKK');
-
-			if (checkoutResponse.success && checkoutResponse.data?.id) {
-				// Set the checkout session cookie
-				event.cookies.set('checkout_session_id', checkoutResponse.data.id, {
-					path: '/',
-					// httpOnly: true,
-					secure: env.NODE_ENV === 'production', // Set to true in production
-					// sameSite: 'lax',
-					maxAge: 86400 * 7 // 7 days
-				});
-			}
-		} catch (error) {
-			console.error('Error setting up checkout session in hooks:', error);
-			// Don't fail the request, just log the error
-		}
-	}
+	// Create an API client instance and attach it to the event object
+	event.locals.commercify = createApiClient(event, authToken) as CachedCommercifyApiClient;
 
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(handleAuth, handleCommercify);
+export const handle: Handle = sequence(handleCommercify, handleAuth);

@@ -4,6 +4,7 @@
     "": {
       "name": "commercify-go-demo",
       "dependencies": {
+        "commercify-api-client": "^1.2.5",
         "lucide-svelte": "^0.515.0",
         "zod": "3.25.67",
       },
@@ -271,6 +272,8 @@
     "class-validator": ["class-validator@0.14.2", "", { "dependencies": { "@types/validator": "^13.11.8", "libphonenumber-js": "^1.11.1", "validator": "^13.9.0" } }, "sha512-3kMVRF2io8N8pY1IFIXlho9r8IPUUIfHe2hYVtiebvAzU2XeQFXTv+XI4WX+TnXmtwXMDcjngcpkiPM0O9PvLw=="],
 
     "clsx": ["clsx@2.1.1", "", {}, "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="],
+
+    "commercify-api-client": ["commercify-api-client@1.2.5", "", {}, "sha512-MCNCWDQhbs+lzVKLTORwD082EZr1xnqGJsvglSz/fnCSV5/8RYovW0Hzd2JYqmFTQpz5dGjWnt4GtZFpG8sxSQ=="],
 
     "commondir": ["commondir@1.0.1", "", {}, "sha512-W9pAhw0ja1Edb5GVdIF1mjZw/ASI0AlShXM83UUGe2DVr5TdAPEA1OA8m/g8zWp9x6On7gqufY+FatDbC3MDQg=="],
 

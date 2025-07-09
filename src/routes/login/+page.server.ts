@@ -6,9 +6,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 	const { commercify } = locals;
 
 	// If user is already authenticated and is admin, redirect to admin dashboard
-	const accessToken = cookies.get('access_token');
+	const accessToken = cookies.get('auth_token');
 	if (accessToken) {
-		const userResponse = await commercify.getUser();
+		const userResponse = await commercify.auth.getUser();
 
 		if (userResponse.success && userResponse.data?.role === 'admin') {
 			throw redirect(303, '/admin');
@@ -49,7 +49,7 @@ export const actions: Actions = {
 		}
 
 		// Set authentication cookies
-		cookies.set('access_token', result.data.accessToken, {
+		cookies.set('auth_token', result.data.accessToken, {
 			path: '/',
 			httpOnly: true,
 			secure: env.NODE_ENV === 'production',
