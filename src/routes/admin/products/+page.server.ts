@@ -5,10 +5,10 @@ import { fail } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ locals, depends }) => {
 	// Make this load function depend on 'products' so we can invalidate it
 	depends('products');
-	
+
 	const commercify = locals.commercify;
 
-	const data = await commercify.getProducts({
+	const data = await commercify.products.listAll({
 		page: 1,
 		page_size: 25
 	});
@@ -42,7 +42,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Product ID is required' });
 		}
 
-		const result = await commercify.deleteProduct(productId);
+		const result = await commercify.products.delete(productId);
 
 		if (!result.success) {
 			console.error('Error deleting product:', result.error);
@@ -51,9 +51,9 @@ export const actions: Actions = {
 			});
 		}
 
-		return { 
-			success: true, 
-			message: 'Product deleted successfully' 
+		return {
+			success: true,
+			message: 'Product deleted successfully'
 		};
 	}
 };

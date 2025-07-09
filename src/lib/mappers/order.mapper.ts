@@ -35,6 +35,23 @@ export const mapOrderSummary = (dto: OrderSummaryDTO): OrderSummary => {
 	};
 };
 
+export const orderListSummaryResponseMapper = (
+	dto: ResponseDTO<OrderSummaryDTO[]>
+): { data: OrderSummary[]; success: boolean; error?: string } => {
+	if (!dto || !dto.data) {
+		return {
+			data: [],
+			success: false,
+			error: 'No order summaries available'
+		};
+	}
+	return {
+		data: dto.data.map(mapOrderSummary),
+		success: dto.success,
+		error: dto.error
+	};
+};
+
 export const orderResponseMapper = (
 	dto: ResponseDTO<OrderDTO>
 ): { data: Order | null; success: boolean; error?: string } => {

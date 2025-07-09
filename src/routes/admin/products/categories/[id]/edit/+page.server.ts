@@ -4,6 +4,8 @@ import { fail } from '@sveltejs/kit';
 import { categorySchema } from '$lib/schemas/admin';
 import { zod } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms';
+import type { Category } from '$lib/types';
+import { ca } from 'zod/v4/locales';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { commercify } = locals;
@@ -11,14 +13,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const categoryId = params.id;
 
 	// Get all categories first to find the current category and provide parent options
-	const categoriesResult = await commercify.getCategories();
+	const categoriesResult = await commercify.categories.list();
 
 	if (!categoriesResult.success) {
 		throw error(500, 'Failed to load categories');
 	}
 
 	const categories = categoriesResult.data || [];
-	const category = categories.find((c) => c.id === categoryId);
+	const category = categories.find((c: Category) => c.id === categoryId);
 
 	if (!category) {
 		throw error(404, 'Category not found');
@@ -37,7 +39,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		form,
 		category,
-		categories: categories.filter((c) => c.id !== categoryId) // Exclude self from parent options
+		categories: categories.filter((c: Category) => c.id !== categoryId) // Exclude self from parent options
 	};
 };
 
@@ -58,12 +60,20 @@ export const actions: Actions = {
 			parentId: form.data.parentId || null
 		};
 
-		const result = await commercify.updateCategory(categoryId, inputData);
+		try {
+			const result = await commercify.categories.update(categoryId, inputData);
 
-		if (!result.success) {
-			return fail(400, {
+			if (!result.success) {
+				return fail(400, {
+					form,
+					error: result.error || 'Failed to update category'
+				});
+			}
+		} catch (error) {
+			console.error('Error updating category:', error);
+			return fail(500, {
 				form,
-				error: result.error || 'Failed to update category'
+				error: 'Internal server error. Please try again.'
 			});
 		}
 

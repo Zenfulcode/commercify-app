@@ -100,14 +100,3 @@ export const variantMapper = (dto: VariantDTO): ProductVariant => {
 		isDefault: dto.is_default
 	};
 };
-
-export const categoryMapper = (dto: CategoryDTO): Category => {
-	return {
-		id: dto.id.toString(),
-		name: dto.name,
-		description: dto.description || '',
-		parentId: dto.parent_id?.toString() || null,
-		createdAt: dto.created_at,
-		updatedAt: dto.updated_at
-	};
-};

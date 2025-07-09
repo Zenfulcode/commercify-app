@@ -13,7 +13,14 @@ import type {
 	ProductSearchRequest,
 	UserLoginRequest,
 	CreateUserRequest,
-	CreateProductRequest
+	CreateProductRequest,
+	TestEmailRequest,
+	AdminOrderListRequest,
+	UpdateOrderStatusRequest,
+	CapturePaymentRequest,
+	RefundPaymentRequest,
+	UpdateProductRequest,
+	AdminProductListRequest
 } from 'commercify-api-client';
 import { EnvironmentConfig } from '../env';
 import {
@@ -24,9 +31,11 @@ import {
 	productResponseMapper,
 	shippingOptionsListMapper,
 	currenyListMapper,
-	userResponseMapper
+	userResponseMapper,
+	orderListSummaryResponseMapper
 } from '$lib/mappers';
-import { updated } from '$app/state';
+import { OrderCache } from '$lib/cache';
+import type { CreateProductInput, UpdateProductInput } from '$lib/types';
 
 /**
  * Cached API client wrapper that adds caching to API operations
@@ -48,12 +57,21 @@ export class CachedCommercifyApiClient {
 	// Products endpoint with caching
 	get products() {
 		return {
-			list: async (request: ProductSearchRequest) => {
+			search: async (request: ProductSearchRequest) => {
 				const cacheKey = `products:search:${JSON.stringify(request)}`;
 
 				return getCachedOrFetch(
 					cacheKey,
 					() => this.client.products.search(request, productListMapper),
+					CACHE_TTL.PRODUCTS
+				);
+			},
+			listAll: async (params: AdminProductListRequest) => {
+				const cacheKey = `products:list:${JSON.stringify(params)}`;
+
+				return getCachedOrFetch(
+					cacheKey,
+					() => this.client.products.listAll(params, productListMapper),
 					CACHE_TTL.PRODUCTS
 				);
 			},
@@ -67,13 +85,54 @@ export class CachedCommercifyApiClient {
 				);
 			},
 			// ADMIN endpoints for managing products
-			create: async (data: CreateProductRequest) => {
+			create: async (input: CreateProductInput) => {
+				const requestData: CreateProductRequest = {
+					name: input.name,
+					description: input.description || '',
+					currency: input.currency,
+					category_id: parseInt(input.categoryId),
+					images: input.images || [],
+					active: input.isActive ?? true,
+					variants:
+						input.variants?.map((variant) => ({
+							sku: variant.sku,
+							price: variant.price,
+							stock: variant.stock,
+							weight: variant.weight || 0,
+							attributes: variant.attributes
+								? Object.entries(variant.attributes).map(([name, value]) => ({ name, value }))
+								: [],
+							images: variant.images || [],
+							is_default: variant.isDefault
+						})) || []
+				};
+
 				// No caching for create operation
-				return this.client.products.create(data, productResponseMapper);
+				return this.client.products.create(requestData, productResponseMapper);
 			},
-			update: async (id: number, data: CreateProductRequest) => {
+			update: async (id: number, data: UpdateProductInput) => {
+				const requestData: UpdateProductRequest = {
+					name: data.name,
+					description: data.description,
+					currency: data.currency,
+					category_id: data.categoryId ? parseInt(data.categoryId) : undefined,
+					images: data.images,
+					active: data.isActive,
+					variants: data.variants?.map((variant) => ({
+						sku: variant.sku,
+						price: variant.price,
+						stock: variant.stock,
+						weight: variant.weight,
+						attributes: variant.attributes
+							? Object.entries(variant.attributes).map(([name, value]) => ({ name, value }))
+							: undefined,
+						images: variant.images,
+						is_default: variant.isDefault
+					}))
+				};
+
 				// No caching for update operation
-				return this.client.products.update(id, data, productResponseMapper);
+				return this.client.products.update(id, requestData, productResponseMapper);
 			},
 			delete: async (id: number) => {
 				// No caching for delete operation
@@ -236,6 +295,50 @@ export class CachedCommercifyApiClient {
 					() => this.client.orders.get(id, orderResponseMapper),
 					CACHE_TTL.ORDER
 				);
+			},
+
+			list: async (params: AdminOrderListRequest) => {
+				const cacheKey = `orders:list:${JSON.stringify(params)}`;
+
+				return getCachedOrFetch(
+					cacheKey,
+					() => this.client.orders.list(params, orderListSummaryResponseMapper),
+					CACHE_TTL.ORDERS
+				);
+			},
+
+			updateOrderStatus: async (id: string, status: UpdateOrderStatusRequest) => {
+				const result = this.client.orders.updateOrderStatus(id, status, orderResponseMapper);
+
+				OrderCache.invalidateOrder(id);
+
+				return result;
+			}
+		};
+	}
+
+	get payments() {
+		return {
+			capture: async (paymentId: string, options: CapturePaymentRequest) => {
+				// No caching for payment capture
+				return this.client.admin.capturePayment(paymentId, options);
+			},
+			cancel: async (paymentId: string) => {
+				// No caching for payment cancellation
+				return this.client.admin.cancelPayment(paymentId);
+			},
+			refund: async (paymentId: string, options: RefundPaymentRequest) => {
+				// No caching for payment refund
+				return this.client.admin.refundPayment(paymentId, options);
+			}
+		};
+	}
+
+	get admin() {
+		return {
+			testEmail: async (email: TestEmailRequest) => {
+				// No caching for test email
+				return this.client.admin.sendTestEmail(email);
 			}
 		};
 	}
@@ -302,7 +405,7 @@ export class CachedCommercifyApiClient {
 				// No caching for registration
 				return this.client.auth.register(input);
 			},
-			signin: async (input: UserLoginRequest) => {
+			login: async (input: UserLoginRequest) => {
 				// No caching for login
 				return this.client.auth.signin(input);
 			},
@@ -314,6 +417,25 @@ export class CachedCommercifyApiClient {
 					() => this.client.users.getProfile(userResponseMapper),
 					CACHE_TTL.USER_PROFILE
 				);
+			}
+		};
+	}
+
+	get categories() {
+		return {
+			list: async () => {
+				const cacheKey = 'categories';
+
+				return getCachedOrFetch(
+					cacheKey,
+					() => this.client.categories.list(),
+					CACHE_TTL.CATEGORIES
+				);
+			},
+			get: async (id: number) => {
+				const cacheKey = `category:${id}`;
+
+				return getCachedOrFetch(cacheKey, () => this.client.categories.get(id), CACHE_TTL.CATEGORY);
 			}
 		};
 	}

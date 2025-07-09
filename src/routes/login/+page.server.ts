@@ -31,7 +31,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const result = await commercify.signIn(email, password);
+		const result = await commercify.auth.login(email, password);
 
 		if (!result.success || !result.data) {
 			return fail(400, {

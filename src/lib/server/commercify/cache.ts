@@ -105,9 +105,12 @@ export const serverCache = new ServerCache();
 export const CACHE_TTL = {
 	PRODUCTS: 10 * 60 * 1000, // 10 minutes
 	PRODUCT: 5 * 60 * 1000, // 5 minutes
+	CATEGORIES: 10 * 60 * 1000, // 10 minutes
+	CATEGORY: 5 * 60 * 1000, // 5 minutes
 	CHECKOUT: 30 * 1000, // 30 seconds
 	SHIPPING_METHODS: 5 * 60 * 1000, // 5 minutes
-	ORDER: 60 * 60 * 1000, // 1 hour
+	ORDER: 5 * 60 * 1000, // 1 hour
+	ORDERS: 5 * 60 * 1000, // 5 minutes
 	DISCOUNTS: 60 * 60 * 1000, // 1 hour
 	CURRENCIES: 60 * 60 * 1000, // 1 hour
 	USER_SESSION: 30 * 60 * 1000, // 30 minutes

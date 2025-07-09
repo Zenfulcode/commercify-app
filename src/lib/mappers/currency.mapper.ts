@@ -4,13 +4,13 @@ import type { CurrencyDTO, ListResponseDTO } from 'commercify-api-client';
 export const currenyListMapper = (
 	dto: ListResponseDTO<CurrencyDTO>
 ): {
-	data: Currency[] | null;
+	data: Currency[];
 	success: boolean;
 	error?: string;
 } => {
 	if (!dto.data) {
 		return {
-			data: null,
+			data: [],
 			success: false,
 			error: 'Currency data is missing in the response'
 		};

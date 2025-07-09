@@ -6,12 +6,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const pageSize = 20;
 
 	try {
-		const data = await commercify.getOrders({
-			pagination: {
-				page: page,
-				page_size: pageSize,
-				total: 25
-			}
+		const data = await commercify.orders.list({
+			page: page,
+			page_size: pageSize
 		});
 
 		if (!data.success || !data.data) {

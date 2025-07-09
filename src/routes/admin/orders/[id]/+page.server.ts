@@ -12,19 +12,26 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 		return fail(404, { error: 'Order ID is required' });
 	}
 
-	const orderResult = await commercify.getOrderById(orderId);
+	try {
+		const orderResult = await commercify.orders.get(orderId);
 
-	if (!orderResult.success || !orderResult.data) {
-		console.error('Error fetching order:', orderResult.error);
-		return fail(404, {
-			error: orderResult.error || 'Order not found'
+		if (!orderResult.success || !orderResult.data) {
+			console.error('Error fetching order:', orderResult.error);
+			return fail(404, {
+				error: orderResult.error || 'Order not found'
+			});
+		}
+
+		return {
+			order: orderResult.data,
+			orderId
+		};
+	} catch (error) {
+		console.error('Error loading order:', error);
+		return fail(500, {
+			error: 'Failed to load order. Please try again later.'
 		});
 	}
-
-	return {
-		order: orderResult.data,
-		orderId
-	};
 };
 
 export const actions: Actions = {
@@ -38,7 +45,7 @@ export const actions: Actions = {
 		}
 
 		// Note: The API captures payment by orderId, but we validate paymentId from the form
-		const result = await commercify.captureOrderPayment(paymentId, {
+		const result = await commercify.payments.capture(paymentId, {
 			isFull: true
 		});
 
@@ -63,7 +70,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.refundOrderPayment(paymentId, { isFull: true });
+		const result = await commercify.payments.refund(paymentId, { isFull: true });
 
 		if (!result.success) {
 			return fail(400, {
@@ -86,7 +93,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.cancelOrderPayment(paymentId);
+		const result = await commercify.payments.cancel(paymentId);
 
 		if (!result.success) {
 			return fail(400, {
@@ -108,7 +115,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.updateOrderStatus(orderId, 'shipped');
+		const result = await commercify.orders.updateOrderStatus(orderId, 'shipped');
 
 		if (!result.success) {
 			return fail(400, {

@@ -3,6 +3,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { productSchema } from '$lib/schemas/product.schema';
+import type { Currency } from '$lib/types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { commercify } = locals;
@@ -13,8 +14,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		// Get available currencies for the form
 		const [currencies, categories] = await Promise.all([
-			commercify.getCurrencies(),
-			commercify.getCategories()
+			commercify.currencies.list(),
+			commercify.categories.list()
 		]);
 		if (!currencies || !categories) {
 			console.error('Failed to fetch currencies or categories');
@@ -40,7 +41,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			});
 		}
 
-		form.data.currency = currencies.data!.items.find((currency) => currency.isDefault)!.code;
+		form.data.currency = currencies.data!.items.find(
+			(currency: Currency) => currency.isDefault
+		)!.code;
 
 		return {
 			form,
@@ -67,7 +70,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const result = await commercify.createProduct(form.data);
+		const result = await commercify.products.create(form.data);
 
 		if (!result.success || !result.data) {
 			return fail(400, {
