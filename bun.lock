@@ -4,7 +4,7 @@
     "": {
       "name": "commercify-go-demo",
       "dependencies": {
-        "commercify-api-client": "^1.2.6",
+        "commercify-api-client": "^1.2.7",
         "lucide-svelte": "^0.515.0",
         "zod": "3.25.67",
       },
@@ -273,7 +273,7 @@
 
     "clsx": ["clsx@2.1.1", "", {}, "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA=="],
 
-    "commercify-api-client": ["commercify-api-client@1.2.7", "", {}, "sha512-XUAAim5QhPxYsHRY7Vo+fyNZZas03lJTPEgka6walAsmiuww8xhb/eL08xciA9/XUtYNrHRV3QlILxmY35Iekg=="],
+    "commercify-api-client": ["commercify-api-client@1.2.8", "", {}, "sha512-EtjYjQGl1rfOJiZOxsVrhXkuRBzLXjWAU6PYG3UDspPjSlyoAPx0UxoaEifWCVmq5XJAlucFVSyNqcDvGPB+AQ=="],
 
     "commondir": ["commondir@1.0.1", "", {}, "sha512-W9pAhw0ja1Edb5GVdIF1mjZw/ASI0AlShXM83UUGe2DVr5TdAPEA1OA8m/g8zWp9x6On7gqufY+FatDbC3MDQg=="],
 

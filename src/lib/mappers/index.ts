@@ -5,3 +5,4 @@ export * from './order.mapper';
 export * from './products.mapper';
 export * from './shipping.mapper';
 export * from './users.mapper';
+export * from './auth.mapper';

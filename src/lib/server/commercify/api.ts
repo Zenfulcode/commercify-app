@@ -32,7 +32,8 @@ import {
 	shippingOptionsListMapper,
 	currenyListMapper,
 	userResponseMapper,
-	orderListSummaryResponseMapper
+	orderListSummaryResponseMapper,
+	loginMapper
 } from '$lib/mappers';
 import { OrderCache } from '$lib/cache';
 import type { CreateProductInput, UpdateProductInput } from '$lib/types';
@@ -407,7 +408,7 @@ export class CachedCommercifyApiClient {
 			},
 			login: async (input: UserLoginRequest) => {
 				// No caching for login
-				return this.client.auth.signin(input);
+				return this.client.auth.signin(input, loginMapper);
 			},
 			getUser: async () => {
 				const cacheKey = 'user:profile';

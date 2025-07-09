@@ -8,31 +8,31 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	if (event.url.pathname.startsWith('/admin')) {
 		const { commercify } = event.locals;
 
-		// Validate the access token by calling getUser()
-		const userResponse = await commercify.getUser();
+		if (!commercify.client.authToken) {
+			console.log('No auth token found, redirecting to login');
+			// Redirect to login if no auth token is present
+			throw redirect(303, '/login');
+		}
 
-		if (!userResponse.success || !userResponse.data) {
-			console.log('Access token validation failed:', userResponse.error);
+		try {
+			const userResponse = await commercify.auth.getUser();
 
-			// Clear all auth-related cookies since token is invalid
+			// Add validated user info to locals for use in admin pages
+			event.locals.user = {
+				email: userResponse.email,
+				name: `${userResponse.firstName} ${userResponse.lastName}`,
+				role: userResponse.role as 'admin'
+			};
+		} catch (error) {
 			event.cookies.delete('auth_token', { path: '/' });
 			event.cookies.delete('user_role', { path: '/' });
-
-			throw redirect(303, '/login');
 		}
 
 		// Verify user has admin role (from validated user data)
-		if (userResponse.data.role !== 'admin') {
-			console.log('User does not have admin role:', userResponse.data.role);
+		if (event.locals.user?.role !== 'admin') {
+			console.log('User does not have admin role:', event.locals.user!.role);
 			throw redirect(303, '/login');
 		}
-
-		// Add validated user info to locals for use in admin pages
-		event.locals.user = {
-			email: userResponse.data.email,
-			name: `${userResponse.data.firstName} ${userResponse.data.lastName}`,
-			role: userResponse.data.role as 'admin'
-		};
 	}
 
 	return resolve(event);

@@ -31,7 +31,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const result = await commercify.auth.login(email, password);
+		const result = await commercify.auth.login({ email, password });
 
 		if (!result.success || !result.data) {
 			return fail(400, {
@@ -49,7 +49,7 @@ export const actions: Actions = {
 		}
 
 		// Set authentication cookies
-		cookies.set('auth_token', result.data.accessToken, {
+		cookies.set('auth_token', result.accessToken, {
 			path: '/',
 			httpOnly: true,
 			secure: env.NODE_ENV === 'production',

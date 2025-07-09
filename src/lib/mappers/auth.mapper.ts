@@ -4,16 +4,36 @@ import { userMapper } from './users.mapper';
 
 export const signUpMapper = (
 	dto: ResponseDTO<UserLoginResponse>
-): { user: CommercifyUser; accessToken: string } => {
+): { data: CommercifyUser; accessToken: string } => {
 	if (!dto || !dto.data) {
 		return {
-			user: userMapper(null),
+			data: userMapper(null),
 			accessToken: ''
 		};
 	}
 
 	return {
-		user: userMapper(dto.data.user),
+		data: userMapper(dto.data.user),
 		accessToken: dto.data.access_token || ''
+	};
+};
+
+export const loginMapper = (
+	dto: ResponseDTO<UserLoginResponse>
+): { data: CommercifyUser | null; accessToken: string; success: boolean; error?: string } => {
+	if (!dto || !dto.data) {
+		return {
+			data: null,
+			accessToken: '',
+			success: false,
+			error: 'Invalid response data'
+		};
+	}
+
+	return {
+		data: userMapper(dto.data.user),
+		accessToken: dto.data.access_token || '',
+		success: dto.success,
+		error: dto.error || undefined
 	};
 };
