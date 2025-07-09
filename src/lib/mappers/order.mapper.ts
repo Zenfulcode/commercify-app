@@ -2,11 +2,13 @@ import type {
 	Order,
 	OrderStatus,
 	OrderSummary,
+	PaginatedData,
 	PaymentStatus,
 	PaymentTransaction,
 	TransactionStatus
 } from '$lib/types';
 import type {
+	ListResponseDTO,
 	OrderDTO,
 	OrderSummaryDTO,
 	PaymentTransactionDTO,
@@ -36,17 +38,52 @@ export const mapOrderSummary = (dto: OrderSummaryDTO): OrderSummary => {
 };
 
 export const orderListSummaryResponseMapper = (
-	dto: ResponseDTO<OrderSummaryDTO[]>
-): { data: OrderSummary[]; success: boolean; error?: string } => {
+	dto: ListResponseDTO<OrderSummaryDTO>
+): { data: PaginatedData<OrderSummary>; success: boolean; error?: string } => {
 	if (!dto || !dto.data) {
 		return {
-			data: [],
+			data: {
+				items: [],
+				pagination: {
+					currentPage: 1,
+					totalPages: 1,
+					totalItems: 0,
+					itemsPerPage: 10
+				}
+			},
 			success: false,
 			error: 'No order summaries available'
 		};
 	}
+
+	if (dto.error) {
+		return {
+			data: {
+				items: [],
+				pagination: {
+					currentPage: 1,
+					totalPages: 1,
+					totalItems: 0,
+					itemsPerPage: 10
+				}
+			},
+			success: false,
+			error: dto.error
+		};
+	}
+
+	const totalPages = Math.ceil(dto.pagination.total / dto.pagination.page_size);
+
 	return {
-		data: dto.data.map(mapOrderSummary),
+		data: {
+			items: dto.data.map(mapOrderSummary),
+			pagination: {
+				currentPage: dto.pagination.page,
+				totalPages: totalPages,
+				totalItems: dto.pagination.total,
+				itemsPerPage: dto.pagination.page_size
+			}
+		},
 		success: dto.success,
 		error: dto.error
 	};
@@ -62,6 +99,15 @@ export const orderResponseMapper = (
 			error: 'No order data available'
 		};
 	}
+
+	if (dto.error) {
+		return {
+			data: null,
+			success: false,
+			error: dto.error
+		};
+	}
+
 	return {
 		data: orderMapper(dto.data),
 		success: dto.success,

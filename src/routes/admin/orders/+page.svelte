@@ -5,15 +5,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Card from '$lib/components/ui/card';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import {
-		ShoppingBag,
-		Search,
-		MoreHorizontal,
-		Eye,
-		Package,
-		CreditCard,
-		RefreshCw
-	} from 'lucide-svelte';
+	import { ShoppingBag, Search, MoreHorizontal, Eye, RefreshCw } from 'lucide-svelte';
 	import { formatCurrency, formatDate, getStatusColor } from '$lib';
 
 	let { data } = $props();

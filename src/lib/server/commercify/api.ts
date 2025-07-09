@@ -27,7 +27,9 @@ import type {
 	RefundPaymentRequest,
 	UpdateProductRequest,
 	AdminProductListRequest,
-	UpdateCategoryRequest
+	UpdateCategoryRequest,
+	OrderListRequest,
+	OrderParameters
 } from 'commercify-api-client';
 import { EnvironmentConfig } from '../env';
 import {
@@ -233,11 +235,11 @@ export class CachedCommercifyApiClient {
 	// Orders endpoint with caching
 	get orders() {
 		return {
-			get: (id: string) => {
+			get: (id: string, params: OrderParameters) => {
 				const cacheKey = `order:${id}`;
 				return getCachedOrFetch(
 					cacheKey,
-					() => this.client.orders.get(id, orderResponseMapper),
+					() => this.client.orders.get(id, params, orderResponseMapper),
 					CACHE_TTL.ORDER
 				);
 			},
@@ -245,7 +247,7 @@ export class CachedCommercifyApiClient {
 			list: CacheHelpers.createCachedEndpoint(
 				'orders:list',
 				(params: AdminOrderListRequest) =>
-					this.client.orders.list(params, orderListSummaryResponseMapper),
+					this.client.orders.listOrders(params, orderListSummaryResponseMapper),
 				CACHE_TTL.ORDERS
 			),
 

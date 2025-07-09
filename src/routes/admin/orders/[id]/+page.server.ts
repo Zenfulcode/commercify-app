@@ -13,7 +13,10 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	}
 
 	try {
-		const orderResult = await commercify.orders.get(orderId);
+		const orderResult = await commercify.orders.get(orderId, {
+			includePaymentTransactions: true,
+			includeItems: true
+		});
 
 		if (!orderResult.success || !orderResult.data) {
 			console.error('Error fetching order:', orderResult.error);
@@ -115,7 +118,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.orders.updateOrderStatus(orderId, 'shipped');
+		const result = await commercify.orders.updateOrderStatus(orderId, { status: 'shipped' });
 
 		if (!result.success) {
 			return fail(400, {

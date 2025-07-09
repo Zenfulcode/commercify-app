@@ -7,8 +7,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	try {
 		const data = await commercify.orders.list({
-			page: page,
-			page_size: pageSize
+			page,
+			pageSize
 		});
 
 		if (!data.success || !data.data) {
