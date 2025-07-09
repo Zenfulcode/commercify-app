@@ -10,18 +10,20 @@ export const load = async ({ params, locals }) => {
 
 	try {
 		// Get the existing product data
-		const product = await commercify.products.get(productId);
+		const result = await commercify.products.get(productId);
 
-		if (!product) {
+		if (!result) {
 			return fail(404, { error: 'Product not found' });
 		}
+
+		const product = result.data;
 
 		// Transform product data to match form schema
 		const formData = {
 			name: product.name,
 			description: product.description || '',
 			currency: product.price.currency,
-			categoryId: product.categoryId || '',
+			categoryId: String(product.categoryId || ''),
 			images: product.images || [],
 			isActive: product.isActive ?? true,
 			variants: product.variants.map((variant: any) => ({
@@ -84,7 +86,7 @@ export const load = async ({ params, locals }) => {
 export const actions: Actions = {
 	default: async ({ request, params, locals }) => {
 		const { commercify } = locals;
-		
+
 		const productId = params.id;
 		if (!productId) {
 			return fail(400, { error: 'Product ID is required' });

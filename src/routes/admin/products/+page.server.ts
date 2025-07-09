@@ -10,7 +10,8 @@ export const load: PageServerLoad = async ({ locals, depends }) => {
 
 	const data = await commercify.products.listAll({
 		page: 1,
-		page_size: 25
+		page_size: 25,
+		active: false
 	});
 
 	if (!data.success || !data.data) {

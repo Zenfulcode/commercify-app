@@ -234,13 +234,14 @@
 										<Select.Root type="single" bind:value={$formData.categoryId}>
 											<Select.Trigger {...props}>
 												{$formData.categoryId
-													? categories.find((category) => category.id === $formData.categoryId)
-															?.name
+													? categories.find(
+															(category) => String(category.id) === String($formData.categoryId)
+														)?.name
 													: 'Select Category'}
 											</Select.Trigger>
 											<Select.Content>
 												{#each categories as category}
-													<Select.Item value={category.id}>{category.name}</Select.Item>
+													<Select.Item value={String(category.id)}>{category.name}</Select.Item>
 												{/each}
 											</Select.Content>
 										</Select.Root>

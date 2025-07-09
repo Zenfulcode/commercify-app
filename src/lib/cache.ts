@@ -105,6 +105,11 @@ export class ProductCache {
 		return Cache.get<Product>(key);
 	}
 
+	static invalidateProduct(id: string): void {
+		const key = `product:${id}`;
+		Cache.invalidate(key);
+	}
+
 	static invalidateProducts(): void {
 		Cache.invalidatePattern('^products:');
 		Cache.invalidatePattern('^product:');

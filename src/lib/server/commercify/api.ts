@@ -35,7 +35,7 @@ import {
 	orderListSummaryResponseMapper,
 	loginMapper
 } from '$lib/mappers';
-import { OrderCache } from '$lib/cache';
+import { OrderCache, ProductCache } from '$lib/cache';
 import type { CreateProductInput, UpdateProductInput } from '$lib/types';
 
 /**
@@ -131,9 +131,13 @@ export class CachedCommercifyApiClient {
 						is_default: variant.isDefault
 					}))
 				};
+				console.log('Updating product with ID:', id, 'Data:', requestData);
 
 				// No caching for update operation
-				return this.client.products.update(id, requestData, productResponseMapper);
+				const result = this.client.products.update(id, requestData, productResponseMapper);
+				// Invalidate product cache after update
+				ProductCache.invalidateProduct(id.toString());
+				return result;
 			},
 			delete: async (id: number) => {
 				// No caching for delete operation
