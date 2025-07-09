@@ -4,13 +4,16 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { productSchema } from '$lib/schemas/product.schema';
 
-export const load = async ({ params, locals }) => {
+export const load = async ({ params, locals, url }) => {
 	const productId = params.id;
 	const { commercify } = locals;
 
 	try {
+		// Check if we should bypass cache (e.g., after an update)
+		const bypassCache = url.searchParams.has('refresh');
+		
 		// Get the existing product data
-		const result = await commercify.products.get(productId);
+		const result = await commercify.products.get(productId, bypassCache);
 
 		if (!result) {
 			return fail(404, { error: 'Product not found' });
@@ -108,8 +111,12 @@ export const actions: Actions = {
 			});
 		}
 
+		// Additional cache invalidation to ensure fresh data
+		const { serverCache } = await import('$lib/server/commercify/cache');
+		serverCache.invalidate(`product:${productId}`);
+		serverCache.invalidatePattern('^products:');
+
 		// Invalidate all cached data to ensure fresh product data is loaded
-		// This will refresh the product list, product details, and any other cached data
 		redirect(303, '/admin/products');
 	}
 };

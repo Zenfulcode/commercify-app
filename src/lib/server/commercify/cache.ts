@@ -1,5 +1,5 @@
 import { dev } from '$app/environment';
-import { USER } from '$env/static/private';
+import { OrderCache, ProductCache } from '$lib/cache';
 
 // Server-side cache implementation
 interface ServerCacheEntry<T> {
@@ -165,4 +165,106 @@ export class CheckoutSessionCache {
 // Memory usage monitoring
 export function getCacheStats(): { size: number; keys: string[] } {
 	return serverCache.getStats();
+}
+
+// ==========================================
+// UNIFIED CACHE UTILITIES
+// ==========================================
+
+/**
+ * Unified cache invalidation utilities that handle both client-side and server-side caches
+ */
+export class CacheInvalidator {
+	/**
+	 * Invalidates both client-side and server-side caches for a specific product
+	 */
+	static async invalidateProduct(id: string | number): Promise<void> {
+		const productId = id.toString();
+
+		// Client-side cache invalidation
+		ProductCache.invalidateProduct(productId);
+
+		// Server-side cache invalidation
+		serverCache.invalidate(`product:${productId}`);
+	}
+
+	/**
+	 * Invalidates all product-related caches (lists, search results, etc.)
+	 */
+	static async invalidateProductLists(): Promise<void> {
+		// Client-side cache invalidation
+		ProductCache.invalidateProducts();
+
+		// Server-side cache invalidation
+		serverCache.invalidatePattern('^products:');
+	}
+
+	/**
+	 * Invalidates both individual product and product lists caches
+	 */
+	static async invalidateAllProductCaches(id?: string | number): Promise<void> {
+		if (id !== undefined) {
+			await this.invalidateProduct(id);
+		}
+		await this.invalidateProductLists();
+	}
+
+	/**
+	 * Invalidates checkout session cache
+	 */
+	static invalidateCheckoutSession(sessionId: string): void {
+		CheckoutSessionCache.invalidate(sessionId);
+	}
+
+	/**
+	 * Invalidates order cache
+	 */
+	static invalidateOrder(id: string): void {
+		OrderCache.invalidateOrder(id);
+	}
+}
+
+/**
+ * Helper utilities for common caching patterns
+ */
+export class CacheHelpers {
+	/**
+	 * Creates a cached endpoint with consistent cache key generation
+	 */
+	static createCachedEndpoint<TParams, TResult>(
+		cacheKeyPrefix: string,
+		apiCall: (params: TParams) => Promise<TResult>,
+		ttl: number
+	) {
+		return (params: TParams): Promise<TResult> => {
+			const cacheKey = `${cacheKeyPrefix}:${JSON.stringify(params)}`;
+			return getCachedOrFetch(cacheKey, () => apiCall(params), ttl);
+		};
+	}
+
+	/**
+	 * Creates a simple cached endpoint for single resource fetching
+	 */
+	static createSimpleCachedEndpoint<TResult>(
+		cacheKey: string,
+		apiCall: () => Promise<TResult>,
+		ttl: number
+	) {
+		return (): Promise<TResult> => {
+			return getCachedOrFetch(cacheKey, apiCall, ttl);
+		};
+	}
+
+	/**
+	 * Creates a higher-order function to handle mutations with cache invalidation
+	 */
+	static withCacheInvalidation<T>(
+		invalidationFn: () => void | Promise<void>
+	) {
+		return async (operation: () => Promise<T>): Promise<T> => {
+			const result = await operation();
+			await invalidationFn();
+			return result;
+		};
+	}
 }

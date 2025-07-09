@@ -1,6 +1,12 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { CommercifyApiClient } from 'commercify-api-client';
-import { CACHE_TTL, getCachedOrFetch, CheckoutSessionCache } from './cache';
+import {
+	CACHE_TTL,
+	getCachedOrFetch,
+	CheckoutSessionCache,
+	CacheInvalidator,
+	CacheHelpers
+} from './cache';
 import type {
 	AddToCheckoutRequest,
 	SetCustomerDetailsRequest,
@@ -20,7 +26,8 @@ import type {
 	CapturePaymentRequest,
 	RefundPaymentRequest,
 	UpdateProductRequest,
-	AdminProductListRequest
+	AdminProductListRequest,
+	UpdateCategoryRequest
 } from 'commercify-api-client';
 import { EnvironmentConfig } from '../env';
 import {
@@ -36,7 +43,8 @@ import {
 	loginMapper
 } from '$lib/mappers';
 import { OrderCache, ProductCache } from '$lib/cache';
-import type { CreateProductInput, UpdateProductInput } from '$lib/types';
+import type { CreateProductInput, UpdateCategoryInput, UpdateProductInput } from '$lib/types';
+import { categoryResponseMapper } from '$lib/mappers/category.mapper';
 
 /**
  * Cached API client wrapper that adds caching to API operations
@@ -58,26 +66,26 @@ export class CachedCommercifyApiClient {
 	// Products endpoint with caching
 	get products() {
 		return {
-			search: async (request: ProductSearchRequest) => {
-				const cacheKey = `products:search:${JSON.stringify(request)}`;
+			search: CacheHelpers.createCachedEndpoint(
+				'products:search',
+				(request: ProductSearchRequest) => this.client.products.search(request, productListMapper),
+				CACHE_TTL.PRODUCTS
+			),
 
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.products.search(request, productListMapper),
-					CACHE_TTL.PRODUCTS
-				);
-			},
-			listAll: async (params: AdminProductListRequest) => {
-				const cacheKey = `products:list:${JSON.stringify(params)}`;
+			listAll: CacheHelpers.createCachedEndpoint(
+				'products:list',
+				(params: AdminProductListRequest) =>
+					this.client.products.listAll(params, productListMapper),
+				CACHE_TTL.PRODUCTS
+			),
 
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.products.listAll(params, productListMapper),
-					CACHE_TTL.PRODUCTS
-				);
-			},
-			get: async (id: number) => {
+			get: async (id: number, forceRefresh = false) => {
 				const cacheKey = `product:${id}`;
+
+				if (forceRefresh) {
+					const { serverCache } = await import('./cache');
+					serverCache.invalidate(cacheKey);
+				}
 
 				return getCachedOrFetch(
 					cacheKey,
@@ -85,7 +93,7 @@ export class CachedCommercifyApiClient {
 					CACHE_TTL.PRODUCT
 				);
 			},
-			// ADMIN endpoints for managing products
+
 			create: async (input: CreateProductInput) => {
 				const requestData: CreateProductRequest = {
 					name: input.name,
@@ -108,9 +116,11 @@ export class CachedCommercifyApiClient {
 						})) || []
 				};
 
-				// No caching for create operation
-				return this.client.products.create(requestData, productResponseMapper);
+				const result = await this.client.products.create(requestData, productResponseMapper);
+				await CacheInvalidator.invalidateProductLists();
+				return result;
 			},
+
 			update: async (id: number, data: UpdateProductInput) => {
 				const requestData: UpdateProductRequest = {
 					name: data.name,
@@ -131,23 +141,29 @@ export class CachedCommercifyApiClient {
 						is_default: variant.isDefault
 					}))
 				};
-				console.log('Updating product with ID:', id, 'Data:', requestData);
 
-				// No caching for update operation
-				const result = this.client.products.update(id, requestData, productResponseMapper);
-				// Invalidate product cache after update
-				ProductCache.invalidateProduct(id.toString());
+				const result = await this.client.products.update(id, requestData, productResponseMapper);
+				await CacheInvalidator.invalidateAllProductCaches(id);
 				return result;
 			},
+
 			delete: async (id: number) => {
-				// No caching for delete operation
-				return this.client.products.delete(id);
+				const result = await this.client.products.delete(id);
+				await CacheInvalidator.invalidateAllProductCaches(id);
+				return result;
 			}
 		};
 	}
 
 	// Checkout endpoint with session-based caching and cache invalidation on mutations
 	get checkout() {
+		// Helper function to handle checkout mutations with cache invalidation
+		const withCheckoutCacheInvalidation = CacheHelpers.withCacheInvalidation(() => {
+			if (this.sessionId) {
+				CacheInvalidator.invalidateCheckoutSession(this.sessionId);
+			}
+		});
+
 		return {
 			get: async () => {
 				if (!this.sessionId) {
@@ -166,135 +182,59 @@ export class CachedCommercifyApiClient {
 				return checkout;
 			},
 
-			addItem: async (request: AddToCheckoutRequest) => {
-				const result = await this.client.checkout.addItem(request, checkoutMapper);
+			addItem: (request: AddToCheckoutRequest) =>
+				withCheckoutCacheInvalidation(() => this.client.checkout.addItem(request, checkoutMapper)),
 
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
+			updateItem: (sku: string, updateRequest: { quantity: number }) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.updateItem(sku, updateRequest, checkoutMapper)
+				),
 
-				return result;
-			},
+			removeItem: (sku: string) =>
+				withCheckoutCacheInvalidation(() => this.client.checkout.removeItem(sku, checkoutMapper)),
 
-			updateItem: async (sku: string, updateRequest: { quantity: number }) => {
-				const result = await this.client.checkout.updateItem(sku, updateRequest, checkoutMapper);
+			setCustomerDetails: (request: SetCustomerDetailsRequest) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.setCustomerDetails(request, checkoutMapper)
+				),
 
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
+			setShippingAddress: (request: SetShippingAddressRequest) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.setShippingAddress(request, checkoutMapper)
+				),
 
-				return result;
-			},
+			setBillingAddress: (request: SetBillingAddressRequest) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.setBillingAddress(request, checkoutMapper)
+				),
 
-			removeItem: async (sku: string) => {
-				const result = await this.client.checkout.removeItem(sku, checkoutMapper);
+			setShippingMethod: (request: SetShippingMethodRequest) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.setShippingMethod(request, checkoutMapper)
+				),
 
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
+			clear: () => withCheckoutCacheInvalidation(() => this.client.checkout.clear(checkoutMapper)),
 
-				return result;
-			},
+			applyDiscount: (discountCode: string) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.applyDiscount(discountCode, checkoutMapper)
+				),
 
-			setCustomerDetails: async (request: SetCustomerDetailsRequest) => {
-				const result = await this.client.checkout.setCustomerDetails(request, checkoutMapper);
+			removeDiscount: () =>
+				withCheckoutCacheInvalidation(() => this.client.checkout.removeDiscount(checkoutMapper)),
 
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			setShippingAddress: async (request: SetShippingAddressRequest) => {
-				const result = await this.client.checkout.setShippingAddress(request, checkoutMapper);
-
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			setBillingAddress: async (request: SetBillingAddressRequest) => {
-				const result = await this.client.checkout.setBillingAddress(request, checkoutMapper);
-
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			setShippingMethod: async (request: SetShippingMethodRequest) => {
-				const result = await this.client.checkout.setShippingMethod(request, checkoutMapper);
-
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			clear: async () => {
-				const result = await this.client.checkout.clear(checkoutMapper);
-
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			applyDiscount: async (discountCode: string) => {
-				const result = await this.client.checkout.applyDiscount(discountCode, checkoutMapper);
-
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			removeDiscount: async () => {
-				const result = await this.client.checkout.removeDiscount(checkoutMapper);
-
-				// Invalidate checkout cache after mutation
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			},
-
-			complete: async (paymentData: CompleteCheckoutRequest) => {
-				const result = await this.client.checkout.complete(paymentData, checkoutCompleteMapper);
-
-				// Invalidate checkout cache after completion
-				if (this.sessionId) {
-					CheckoutSessionCache.invalidate(this.sessionId);
-				}
-
-				return result;
-			}
+			complete: (paymentData: CompleteCheckoutRequest) =>
+				withCheckoutCacheInvalidation(() =>
+					this.client.checkout.complete(paymentData, checkoutCompleteMapper)
+				)
 		};
 	}
 
 	// Orders endpoint with caching
 	get orders() {
 		return {
-			get: async (id: string) => {
+			get: (id: string) => {
 				const cacheKey = `order:${id}`;
-
 				return getCachedOrFetch(
 					cacheKey,
 					() => this.client.orders.get(id, orderResponseMapper),
@@ -302,21 +242,16 @@ export class CachedCommercifyApiClient {
 				);
 			},
 
-			list: async (params: AdminOrderListRequest) => {
-				const cacheKey = `orders:list:${JSON.stringify(params)}`;
-
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.orders.list(params, orderListSummaryResponseMapper),
-					CACHE_TTL.ORDERS
-				);
-			},
+			list: CacheHelpers.createCachedEndpoint(
+				'orders:list',
+				(params: AdminOrderListRequest) =>
+					this.client.orders.list(params, orderListSummaryResponseMapper),
+				CACHE_TTL.ORDERS
+			),
 
 			updateOrderStatus: async (id: string, status: UpdateOrderStatusRequest) => {
-				const result = this.client.orders.updateOrderStatus(id, status, orderResponseMapper);
-
-				OrderCache.invalidateOrder(id);
-
+				const result = await this.client.orders.updateOrderStatus(id, status, orderResponseMapper);
+				CacheInvalidator.invalidateOrder(id);
 				return result;
 			}
 		};
@@ -324,123 +259,101 @@ export class CachedCommercifyApiClient {
 
 	get payments() {
 		return {
-			capture: async (paymentId: string, options: CapturePaymentRequest) => {
-				// No caching for payment capture
-				return this.client.admin.capturePayment(paymentId, options);
-			},
-			cancel: async (paymentId: string) => {
-				// No caching for payment cancellation
-				return this.client.admin.cancelPayment(paymentId);
-			},
-			refund: async (paymentId: string, options: RefundPaymentRequest) => {
-				// No caching for payment refund
-				return this.client.admin.refundPayment(paymentId, options);
-			}
+			capture: (paymentId: string, options: CapturePaymentRequest) =>
+				this.client.admin.capturePayment(paymentId, options),
+			cancel: (paymentId: string) => this.client.admin.cancelPayment(paymentId),
+			refund: (paymentId: string, options: RefundPaymentRequest) =>
+				this.client.admin.refundPayment(paymentId, options)
 		};
 	}
 
 	get admin() {
 		return {
-			testEmail: async (email: TestEmailRequest) => {
-				// No caching for test email
-				return this.client.admin.sendTestEmail(email);
-			}
+			testEmail: (email: TestEmailRequest) => this.client.admin.sendTestEmail(email)
 		};
 	}
 
 	get shipping() {
 		return {
-			getOptions: async (data: CalculateShippingOptionsRequest) => {
-				const cacheKey = `shipping:options:${JSON.stringify(data)}`;
-
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.shipping.calculateOptions(data, shippingOptionsListMapper),
-					CACHE_TTL.SHIPPING_METHODS
-				);
-			}
+			getOptions: CacheHelpers.createCachedEndpoint(
+				'shipping:options',
+				(data: CalculateShippingOptionsRequest) =>
+					this.client.shipping.calculateOptions(data, shippingOptionsListMapper),
+				CACHE_TTL.SHIPPING_METHODS
+			)
 		};
 	}
 
 	get discounts() {
 		return {
-			validate: async (code: ValidateDiscountRequest) => {
-				const cacheKey = `discount:validate:${code}`;
-
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.discounts.validate(code),
-					CACHE_TTL.DISCOUNTS
-				);
-			}
+			validate: CacheHelpers.createCachedEndpoint(
+				'discount:validate',
+				(code: ValidateDiscountRequest) => this.client.discounts.validate(code),
+				CACHE_TTL.DISCOUNTS
+			)
 		};
 	}
 
 	get currencies() {
 		return {
-			list: async () => {
-				const cacheKey = 'currencies';
-
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.currencies.list(currenyListMapper),
-					CACHE_TTL.CURRENCIES
-				);
-			}
+			list: CacheHelpers.createSimpleCachedEndpoint(
+				'currencies',
+				() => this.client.currencies.list(currenyListMapper),
+				CACHE_TTL.CURRENCIES
+			)
 		};
 	}
 
 	get users() {
 		return {
-			getProfile: async () => {
-				const cacheKey = 'user:profile';
-
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.users.getProfile(userResponseMapper),
-					CACHE_TTL.USER_PROFILE
-				);
-			}
+			getProfile: CacheHelpers.createSimpleCachedEndpoint(
+				'user:profile',
+				() => this.client.users.getProfile(userResponseMapper),
+				CACHE_TTL.USER_PROFILE
+			)
 		};
 	}
 
 	get auth() {
 		return {
-			register: async (input: CreateUserRequest) => {
-				// No caching for registration
-				return this.client.auth.register(input);
-			},
-			login: async (input: UserLoginRequest) => {
-				// No caching for login
-				return this.client.auth.signin(input, loginMapper);
-			},
-			getUser: async () => {
-				const cacheKey = 'user:profile';
-
-				return getCachedOrFetch(
-					cacheKey,
-					() => this.client.users.getProfile(userResponseMapper),
-					CACHE_TTL.USER_PROFILE
-				);
-			}
+			register: (input: CreateUserRequest) => this.client.auth.register(input),
+			login: (input: UserLoginRequest) => this.client.auth.signin(input, loginMapper),
+			getUser: CacheHelpers.createSimpleCachedEndpoint(
+				'user:profile',
+				() => this.client.users.getProfile(userResponseMapper),
+				CACHE_TTL.USER_PROFILE
+			)
 		};
 	}
 
 	get categories() {
 		return {
-			list: async () => {
-				const cacheKey = 'categories';
-
+			list: CacheHelpers.createSimpleCachedEndpoint(
+				'categories',
+				() => this.client.categories.list(),
+				CACHE_TTL.CATEGORIES
+			),
+			get: (id: number) => {
+				const cacheKey = `category:${id}`;
 				return getCachedOrFetch(
 					cacheKey,
-					() => this.client.categories.list(),
-					CACHE_TTL.CATEGORIES
+					() => this.client.categories.get(id, categoryResponseMapper),
+					CACHE_TTL.CATEGORY
 				);
 			},
-			get: async (id: number) => {
-				const cacheKey = `category:${id}`;
+			delete: (id: number) => {
+				const result = this.client.categories.delete(id);
+				return result;
+			},
+			update: (id: number, data: UpdateCategoryInput) => {
+				const requestData: UpdateCategoryRequest = {
+					name: data.name,
+					description: data.description || '',
+					parent_id: data.parentId ? parseInt(data.parentId) : undefined
+				};
 
-				return getCachedOrFetch(cacheKey, () => this.client.categories.get(id), CACHE_TTL.CATEGORY);
+				const result = this.client.categories.update(id, requestData, categoryResponseMapper);
+				return result;
 			}
 		};
 	}
