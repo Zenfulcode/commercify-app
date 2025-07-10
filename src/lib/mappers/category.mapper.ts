@@ -1,5 +1,5 @@
 import type { Category } from '$lib/types';
-import type { CategoryDTO, ResponseDTO } from 'commercify-api-client';
+import type { CategoryDTO, ListResponseDTO, ResponseDTO } from 'commercify-api-client';
 
 export const categoryResponseMapper = (
 	dto: ResponseDTO<CategoryDTO>
@@ -8,19 +8,11 @@ export const categoryResponseMapper = (
 	success: boolean;
 	error?: string;
 } => {
-	if (!dto.data) {
+	if (!dto.success || !dto.data) {
 		return {
 			data: null,
 			success: false,
-			error: 'Category data is missing'
-		};
-	}
-
-	if (dto.error) {
-		return {
-			data: null,
-			success: false,
-			error: dto.error
+			error: dto.error || 'Category not found'
 		};
 	}
 
@@ -31,14 +23,14 @@ export const categoryResponseMapper = (
 	};
 };
 
-export const categoryListMapper = (dto: {
-	data: CategoryDTO[];
-}): { data: Category[]; success: boolean; error?: string } => {
-	if (!dto.data || !Array.isArray(dto.data)) {
+export const categoryListMapper = (
+	dto: ListResponseDTO<CategoryDTO>
+): { data: Category[]; success: boolean; error?: string } => {
+	if (!dto.success || !dto.data) {
 		return {
 			data: [],
 			success: false,
-			error: 'Category data is missing or not in the expected format'
+			error: dto.error || 'No categories found'
 		};
 	}
 

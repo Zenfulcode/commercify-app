@@ -81,9 +81,8 @@
 							<Select.Root type="single" bind:value={$formData.parentId} name={props.name}>
 								<Select.Trigger {...props}>
 									{$formData.parentId
-										? data.categories.find(
-												(c: Category) => String(c.id) === String($formData.parentId)
-											)?.name
+										? data.categories.find((c: Category) => String(c.id) === $formData.parentId)
+												?.name
 										: 'Select a parent category (optional)'}
 								</Select.Trigger>
 								<Select.Content>
