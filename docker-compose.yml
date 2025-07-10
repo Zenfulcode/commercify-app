@@ -93,8 +93,8 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
-      - API_BASE_URL_DEV=http://commercify-api
-      - API_BASE_URL_PROD=http://commercify-api
+      - API_BASE_URL_DEV=http://commercify-api:6091
+      - API_BASE_URL_PROD=http://commercify-api:6091
     depends_on:
       - commercify-api
     restart: unless-stopped
