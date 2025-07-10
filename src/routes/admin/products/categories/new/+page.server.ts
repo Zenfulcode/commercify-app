@@ -9,12 +9,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { commercify } = locals;
 
 	// Get all categories for parent selection
-	const categoriesResult = await commercify.getCategories();
+	try {
+		const categoriesResult = await commercify.categories.list();
 
-	return {
-		form: await superValidate(zod(categorySchema)),
-		categories: categoriesResult.success ? categoriesResult.data || [] : []
-	};
+		return {
+			form: await superValidate(zod(categorySchema)),
+			categories: categoriesResult.success ? categoriesResult.data || [] : []
+		};
+	} catch (error) {
+		console.error('Error loading categories:', error);
+		return {
+			form: await superValidate(zod(categorySchema)),
+			categories: [],
+			error: 'Failed to load categories. Please try again later.'
+		};
+	}
 };
 
 export const actions: Actions = {
@@ -27,7 +36,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const result = await commercify.createCategory({
+		const result = await commercify.categories.create({
 			name: form.data.name,
 			description: form.data.description || '',
 			parentId: form.data.parentId || null

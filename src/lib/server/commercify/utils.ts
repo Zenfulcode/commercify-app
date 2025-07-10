@@ -1,5 +1,5 @@
-import type { Checkout, CheckoutItem, PaginatedData, Product } from '$lib/types';
-import { commercify } from './commercify';
+import type { Price, Product } from '$lib/types';
+import type { Checkout, CheckoutItem } from '$lib/types/checkout';
 
 /**
  * Enhanced API utilities that extend the base Commercify client
@@ -7,75 +7,17 @@ import { commercify } from './commercify';
  */
 export class ApiUtils {
 	/**
-	 * Search products with price range filtering
-	 * This is a client-side enhancement until the API supports price filtering
-	 */
-	// static async searchProductsWithPriceFilter(params: {
-	// 	search?: string;
-	// 	category?: string;
-	// 	page?: number;
-	// 	page_size?: number;
-	// 	currency?: string;
-	// 	min_price?: number;
-	// 	max_price?: number;
-	// }): Promise<PaginatedData<Product>> {
-	// 	// Get products from the API
-	// 	const result = await commercify.searchProducts(params);
-
-	// 	// Apply client-side price filtering if needed
-	// 	let filteredProducts = result.items;
-
-	// 	if (params.min_price !== undefined || params.max_price !== undefined) {
-	// 		filteredProducts = result.items.filter((product) => {
-	// 			const price = product.price;
-
-	// 			if (params.min_price !== undefined && price < params.min_price) {
-	// 				return false;
-	// 			}
-
-	// 			if (params.max_price !== undefined && price > params.max_price) {
-	// 				return false;
-	// 			}
-
-	// 			return true;
-	// 		});
-	// 	}
-
-	// 	// Recalculate pagination based on filtered results
-	// 	const filteredTotal = filteredProducts.length;
-	// 	const pageSize = params.page_size || 12;
-	// 	const currentPage = params.page || 1;
-	// 	// const startIndex = (currentPage - 1) * pageSize;
-	// 	// const endIndex = startIndex + pageSize;
-
-	// 	// const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
-
-	// 	return {
-	// 		items: filteredProducts,
-	// 		pagination: {
-	// 			currentPage: currentPage,
-	// 			itemsPerPage: pageSize,
-	// 			totalItems: filteredTotal,
-	// 			totalPages: Math.ceil(filteredTotal / pageSize)
-	// 		}
-	// 	};
-	// }
-
-	/**
 	 * Get variant attribute value by name (case-insensitive)
 	 */
 	static getVariantAttribute(
 		variant: Product['variants'][0],
 		attributeName: string
 	): string | undefined {
-		// Check if attributes exist and find the matching key (case-insensitive)
-		if (!variant.attributes) return undefined;
-
-		const attributeKey = Object.keys(variant.attributes).find(
+		// Find the attribute key that matches the name (case-insensitive)
+		const matchingKey = Object.keys(variant.attributes).find(
 			(key) => key.toLowerCase() === attributeName.toLowerCase()
 		);
-
-		return attributeKey ? variant.attributes[attributeKey] : undefined;
+		return matchingKey ? variant.attributes[matchingKey] : undefined;
 	}
 
 	/**
@@ -85,11 +27,10 @@ export class ApiUtils {
 		const attributeNames = new Set<string>();
 
 		product.variants.forEach((variant) => {
-			if (variant.attributes) {
-				Object.keys(variant.attributes).forEach((attributeName) => {
-					attributeNames.add(attributeName);
-				});
-			}
+			// Get all attribute names from the object keys
+			Object.keys(variant.attributes).forEach((attributeName) => {
+				attributeNames.add(attributeName);
+			});
 		});
 
 		return Array.from(attributeNames);
@@ -131,21 +72,14 @@ export class ApiUtils {
 	 */
 	static getDefaultVariant(product: Product): Product['variants'][0] | undefined {
 		return product.variants.find((variant) => variant.isDefault) || product.variants[0];
+		return product.variants.find((variant) => variant.isDefault) || product.variants[0];
 	}
 
 	/**
 	 * Format currency value
 	 */
-	static formatCurrency(amount: number, currencyCode: string = 'USD'): string {
-		try {
-			return new Intl.NumberFormat('en-US', {
-				style: 'currency',
-				currency: currencyCode
-			}).format(amount);
-		} catch (error) {
-			// Fallback formatting
-			return `${currencyCode} ${amount.toFixed(2)}`;
-		}
+	static formatCurrency(price: Price): string {
+		return `${price.amount.toFixed(2)} ${price.currency}`;
 	}
 
 	/**
@@ -197,7 +131,7 @@ export class ApiUtils {
 
 		return {
 			subtotal: checkout.subtotal,
-			shipping: checkout.shippingDetails?.shippingCost || 0,
+			shipping: checkout.shippingCost || 0,
 			discount: checkout.discountDetails?.amount || 0,
 			total: checkout.totalAmount,
 			itemCount
@@ -233,9 +167,9 @@ export class ApiUtils {
 			missing.push('customer details');
 		}
 
-		if (!checkout.shippingDetails) {
-			missing.push('shipping method');
-		}
+		// if (!checkout.shippingDetails) {
+		// 	missing.push('shipping method');
+		// }
 
 		return {
 			ready: missing.length === 0,

@@ -5,7 +5,7 @@ export const load = async ({ params, locals }) => {
 	const productId = params.id;
 
 	try {
-		const productResponse = await commercify.getProduct(productId);
+		const productResponse = await commercify.products.get(productId);
 
 		if (!productResponse.success || !productResponse.data) {
 			return fail(404, { error: 'Product not found' });

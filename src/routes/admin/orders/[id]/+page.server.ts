@@ -12,35 +12,50 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 		return fail(404, { error: 'Order ID is required' });
 	}
 
-	const orderResult = await commercify.getOrderById(orderId);
+	try {
+		const orderResult = await commercify.orders.get(orderId, {
+			includePaymentTransactions: true,
+			includeItems: true
+		});
 
-	if (!orderResult.success || !orderResult.data) {
-		console.error('Error fetching order:', orderResult.error);
-		return fail(404, {
-			error: orderResult.error || 'Order not found'
+		if (!orderResult.success || !orderResult.data) {
+			console.error('Error fetching order:', orderResult.error);
+			return fail(404, {
+				error: orderResult.error || 'Order not found'
+			});
+		}
+
+		return {
+			order: orderResult.data,
+			orderId
+		};
+	} catch (error) {
+		console.error('Error loading order:', error);
+		return fail(500, {
+			error: 'Failed to load order. Please try again later.'
 		});
 	}
-
-	return {
-		order: orderResult.data,
-		orderId
-	};
 };
 
 export const actions: Actions = {
-	capture: async ({ request, locals }) => {
+	capture: async ({ request, locals, params }) => {
 		const { commercify } = locals;
 		const data = await request.formData();
 		const paymentId = data.get('paymentId') as string;
+		const orderId = params.id;
 
 		if (!paymentId) {
 			return fail(400, { error: 'Payment ID is required' });
 		}
 
 		// Note: The API captures payment by orderId, but we validate paymentId from the form
-		const result = await commercify.captureOrderPayment(paymentId, {
-			isFull: true
-		});
+		const result = await commercify.payments.capture(
+			paymentId,
+			{
+				is_full: true
+			},
+			orderId
+		);
 
 		if (!result.success) {
 			return fail(400, {
@@ -54,16 +69,17 @@ export const actions: Actions = {
 		};
 	},
 
-	refund: async ({ locals, request }) => {
+	refund: async ({ locals, request, params }) => {
 		const { commercify } = locals;
 		const data = await request.formData();
 		const paymentId = data.get('paymentId') as string;
+		const orderId = params.id;
 
 		if (!paymentId) {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.refundOrderPayment(paymentId, { isFull: true });
+		const result = await commercify.payments.refund(paymentId, { is_full: true }, orderId);
 
 		if (!result.success) {
 			return fail(400, {
@@ -77,16 +93,17 @@ export const actions: Actions = {
 		};
 	},
 
-	cancel: async ({ request, locals }) => {
+	cancel: async ({ request, locals, params }) => {
 		const { commercify } = locals;
 		const data = await request.formData();
 		const paymentId = data.get('paymentId') as string;
+		const orderId = params.id;
 
 		if (!paymentId) {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.cancelOrderPayment(paymentId);
+		const result = await commercify.payments.cancel(paymentId, orderId);
 
 		if (!result.success) {
 			return fail(400, {
@@ -108,7 +125,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.updateOrderStatus(orderId, 'shipped');
+		const result = await commercify.orders.updateOrderStatus(orderId, { status: 'shipped' });
 
 		if (!result.success) {
 			return fail(400, {

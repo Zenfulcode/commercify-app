@@ -108,29 +108,6 @@ services:
     networks:
       - commercify-network
 
-  # Development service (optional)
-  commercify-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    ports:
-      - '5173:5173'
-    volumes:
-      - .:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - ORIGIN=http://localhost:5173
-      - API_BASE_URL_DEV=http://commercify-api:6091/api
-      - API_BASE_URL_PROD=http://commercify-api:6091/api
-    depends_on:
-      - commercify-api
-    command: bun run dev --host
-    profiles:
-      - dev
-    networks:
-      - commercify-network
-
 volumes:
   postgres_data:
 

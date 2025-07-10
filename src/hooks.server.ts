@@ -1,89 +1,51 @@
 import type { Handle } from '@sveltejs/kit';
-import { createCommercifyClient } from '$lib/server/api';
 import { sequence } from '@sveltejs/kit/hooks';
-import { env } from '$env/dynamic/private';
 import { redirect } from '@sveltejs/kit';
+import { CachedCommercifyApiClient, createApiClient } from '$lib/server/commercify/api';
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	// Check if the route requires admin authentication
 	if (event.url.pathname.startsWith('/admin')) {
-		const accessToken = event.cookies.get('access_token');
+		const { commercify } = event.locals;
 
-		// If no access token, redirect to login immediately
-		if (!accessToken) {
+		if (!commercify.client.authToken) {
+			console.log('No auth token found, redirecting to login');
+			// Redirect to login if no auth token is present
 			throw redirect(303, '/login');
 		}
 
-		// Create commercify client to validate the token
-		const cookieString = event.cookies
-			.getAll()
-			.map((cookie) => `${cookie.name}=${cookie.value}`)
-			.join('; ');
+		try {
+			const userResponse = await commercify.auth.getUser();
 
-		const commercifyClient = createCommercifyClient(cookieString);
-
-		// Validate the access token by calling getUser()
-		const userResponse = await commercifyClient.getUser();
-
-		if (!userResponse.success || !userResponse.data) {
-			console.log('Access token validation failed:', userResponse.error);
-
-			// Clear all auth-related cookies since token is invalid
-			event.cookies.delete('access_token', { path: '/' });
+			// Add validated user info to locals for use in admin pages
+			event.locals.user = {
+				email: userResponse.email,
+				name: `${userResponse.firstName} ${userResponse.lastName}`,
+				role: userResponse.role as 'admin'
+			};
+		} catch (error) {
+			event.cookies.delete('auth_token', { path: '/' });
 			event.cookies.delete('user_role', { path: '/' });
-
-			throw redirect(303, '/login');
 		}
 
 		// Verify user has admin role (from validated user data)
-		if (userResponse.data.role !== 'admin') {
-			console.log('User does not have admin role:', userResponse.data.role);
+		if (event.locals.user?.role !== 'admin') {
+			console.log('User does not have admin role:', event.locals.user!.role);
 			throw redirect(303, '/login');
 		}
-
-		// Add validated user info to locals for use in admin pages
-		event.locals.user = {
-			email: userResponse.data.email,
-			name: `${userResponse.data.firstName} ${userResponse.data.lastName}`,
-			role: userResponse.data.role as 'admin',
-			accessToken
-		};
 	}
 
 	return resolve(event);
 };
 
 const handleCommercify: Handle = async ({ event, resolve }) => {
-	// Create commercify client with forwarded cookies and store in locals
-	const cookieString = event.cookies
-		.getAll()
-		.map((cookie) => `${cookie.name}=${cookie.value}`)
-		.join('; ');
+	// Get the auth token from a secure, httpOnly cookie
+	const authToken = event.cookies.get('auth_token');
 
-	event.locals.commercify = createCommercifyClient(cookieString);
-
-	// For shop routes, ensure we have a checkout session and set the cookie
-	if (event.url.pathname.startsWith('/shop')) {
-		try {
-			const checkoutResponse = await event.locals.commercify.getOrCreateCheckout('DKK');
-
-			if (checkoutResponse.success && checkoutResponse.data?.id) {
-				// Set the checkout session cookie
-				event.cookies.set('checkout_session_id', checkoutResponse.data.id, {
-					path: '/',
-					// httpOnly: true,
-					secure: env.NODE_ENV === 'production', // Set to true in production
-					// sameSite: 'lax',
-					maxAge: 86400 * 7 // 7 days
-				});
-			}
-		} catch (error) {
-			console.error('Error setting up checkout session in hooks:', error);
-			// Don't fail the request, just log the error
-		}
-	}
+	// Create an API client instance and attach it to the event object
+	event.locals.commercify = createApiClient(event, authToken) as CachedCommercifyApiClient;
 
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(handleAuth, handleCommercify);
+export const handle: Handle = sequence(handleCommercify, handleAuth);

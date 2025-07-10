@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { commercify } = locals;
 
 	// Get all categories
-	const categoriesResult = await commercify.getCategories();
+	const categoriesResult = await commercify.categories.list();
 
 	if (!categoriesResult.success) {
 		console.error('Failed to load categories:', categoriesResult.error);
@@ -31,7 +31,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Category ID is required' });
 		}
 
-		const result = await commercify.deleteCategory(categoryId);
+		const result = await commercify.categories.delete(categoryId);
 
 		if (!result.success) {
 			return fail(400, { error: result.error || 'Failed to delete category' });

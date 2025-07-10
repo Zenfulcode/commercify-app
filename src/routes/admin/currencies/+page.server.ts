@@ -5,7 +5,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { commercify } = locals;
 
 	try {
-		const data = await commercify.getCurrencies();
+		const data = await commercify.currencies.list();
 
 		if (data.error || !data.data) {
 			console.error('Error fetching currencies:', data.error);
@@ -55,7 +55,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const result = await commercify.createCurrency(currencyData);
+			const result = await commercify.currencies.create(currencyData);
 
 			if (result.success) {
 				return { success: true };
@@ -81,7 +81,7 @@ export const actions: Actions = {
 		const enabled = data.get('enabled') === 'true';
 
 		try {
-			const result = await commercify.updateCurrency(code, { is_enabled: enabled });
+			const result = await commercify.currencies.update(code, { is_enabled: enabled });
 
 			if (result.success) {
 				return { success: true };
