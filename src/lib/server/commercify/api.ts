@@ -29,7 +29,8 @@ import type {
 	AdminProductListRequest,
 	UpdateCategoryRequest,
 	OrderListRequest,
-	OrderParameters
+	OrderParameters,
+	CreateCategoryRequest
 } from 'commercify-api-client';
 import { EnvironmentConfig } from '../env';
 import {
@@ -46,8 +47,13 @@ import {
 	orderSummaryResponseMapper
 } from '$lib/mappers';
 import { OrderCache, ProductCache } from '$lib/cache';
-import type { CreateProductInput, UpdateCategoryInput, UpdateProductInput } from '$lib/types';
-import { categoryResponseMapper } from '$lib/mappers/category.mapper';
+import type {
+	CreateCategoryInput,
+	CreateProductInput,
+	UpdateCategoryInput,
+	UpdateProductInput
+} from '$lib/types';
+import { categoryListMapper, categoryResponseMapper } from '$lib/mappers/category.mapper';
 import { paymentResponseMapper } from '$lib/mappers/payments.mapper';
 
 /**
@@ -373,7 +379,7 @@ export class CachedCommercifyApiClient {
 		return {
 			list: CacheHelpers.createSimpleCachedEndpoint(
 				'categories',
-				() => this.client.categories.list(),
+				() => this.client.categories.list(categoryListMapper),
 				CACHE_TTL.CATEGORIES
 			),
 			get: (id: number) => {
@@ -384,8 +390,22 @@ export class CachedCommercifyApiClient {
 					CACHE_TTL.CATEGORY
 				);
 			},
+			create: async (data: CreateCategoryInput) => {
+				const requestData: CreateCategoryRequest = {
+					name: data.name,
+					description: data.description || '',
+					parent_id: data.parentId ? parseInt(data.parentId) : undefined
+				};
+
+				const result = await this.client.categories.create(requestData, categoryResponseMapper);
+
+				// Invalidate category caches after creation
+				await CacheInvalidator.invalidateAllCategoryCaches();
+
+				return result;
+			},
 			update: async (id: number, data: any) => {
-				const requestData = {
+				const requestData: UpdateCategoryRequest = {
 					name: data.name,
 					description: data.description || '',
 					parent_id: data.parentId ? parseInt(data.parentId) : undefined

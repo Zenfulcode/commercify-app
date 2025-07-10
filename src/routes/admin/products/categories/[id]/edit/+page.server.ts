@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const categories = categoriesResult.data || [];
-	const category = categories.find((c: Category) => String(c.id) === String(categoryId));
+	const category: Category = categories.find((c: Category) => String(c.id) === String(categoryId));
 
 	if (!category) {
 		throw error(404, 'Category not found');
@@ -30,15 +30,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		{
 			name: category.name,
 			description: category.description || '',
-			parentId: category.parentId?.toString()
+			parentId: category.parentId ? String(category.parentId) : undefined
 		},
 		zod(categorySchema)
 	);
 
+	const parentOptions = categories.filter((c: Category) => String(c.id) !== String(categoryId)); // Exclude self from parent options
 	return {
 		form,
 		category,
-		categories: categories.filter((c: Category) => String(c.id) !== String(categoryId)) // Exclude self from parent options
+		categories: parentOptions
 	};
 };
 
