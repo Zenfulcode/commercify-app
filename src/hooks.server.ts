@@ -23,15 +23,15 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				name: `${userResponse.firstName} ${userResponse.lastName}`,
 				role: userResponse.role as 'admin'
 			};
+
+			// Verify user has admin role (from validated user data)
+			if (event.locals.user.role !== 'admin') {
+				console.log('User does not have admin role:', event.locals.user.role);
+				throw redirect(303, '/login');
+			}
 		} catch (error) {
 			event.cookies.delete('auth_token', { path: '/' });
 			event.cookies.delete('user_role', { path: '/' });
-		}
-
-		// Verify user has admin role (from validated user data)
-		if (event.locals.user?.role !== 'admin') {
-			console.log('User does not have admin role:', event.locals.user!.role);
-			throw redirect(303, '/login');
 		}
 	}
 

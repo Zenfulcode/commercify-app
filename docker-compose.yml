@@ -1,7 +1,7 @@
 services:
   # Commercify API Backend
   commercify-api:
-    image: ghcr.io/zenfulcode/commercifygo:v2-dev
+    image: ghcr.io/zenfulcode/commercifygo:v0.0.5-beta
     ports:
       - '6091:6091'
     environment:
@@ -44,7 +44,7 @@ services:
       - MOBILEPAY_CLIENT_ID=${MOBILEPAY_CLIENT_ID:-}
       - MOBILEPAY_CLIENT_SECRET=${MOBILEPAY_CLIENT_SECRET:-}
       - MOBILEPAY_WEBHOOK_URL=${MOBILEPAY_WEBHOOK_URL:-}
-      - MOBILEPAY_PAYMENT_DESCRIPTION=${MOBILEPAY_PAYMENT_DESCRIPTION:-Commercify Store Purchase}
+      - MOBILEPAY_PAYMENT_DESCRIPTION=${MOBILEPAY_PAYMENT_DESCRIPTION:-Commercify Store Purchase}''
 
       # Return URL
       - RETURN_URL=${RETURN_URL:-http://localhost:3000/payment/complete}
@@ -93,18 +93,11 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOST=0.0.0.0
-      - ORIGIN=https://e070-2a05-f6c6-5509-0-9848-7eb2-e94f-832f.ngrok-free.app
-      - API_BASE_URL_DEV=http://commercify-api:6091/api
-      - API_BASE_URL_PROD=http://commercify-api:6091/api
+      - API_BASE_URL_DEV=http://commercify-api
+      - API_BASE_URL_PROD=http://commercify-api
     depends_on:
       - commercify-api
     restart: unless-stopped
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     networks:
       - commercify-network
 
