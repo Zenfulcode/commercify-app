@@ -38,19 +38,24 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
 };
 
 export const actions: Actions = {
-	capture: async ({ request, locals }) => {
+	capture: async ({ request, locals, params }) => {
 		const { commercify } = locals;
 		const data = await request.formData();
 		const paymentId = data.get('paymentId') as string;
+		const orderId = params.id;
 
 		if (!paymentId) {
 			return fail(400, { error: 'Payment ID is required' });
 		}
 
 		// Note: The API captures payment by orderId, but we validate paymentId from the form
-		const result = await commercify.payments.capture(paymentId, {
-			isFull: true
-		});
+		const result = await commercify.payments.capture(
+			paymentId,
+			{
+				is_full: true
+			},
+			orderId
+		);
 
 		if (!result.success) {
 			return fail(400, {
@@ -64,16 +69,17 @@ export const actions: Actions = {
 		};
 	},
 
-	refund: async ({ locals, request }) => {
+	refund: async ({ locals, request, params }) => {
 		const { commercify } = locals;
 		const data = await request.formData();
 		const paymentId = data.get('paymentId') as string;
+		const orderId = params.id;
 
 		if (!paymentId) {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.payments.refund(paymentId, { isFull: true });
+		const result = await commercify.payments.refund(paymentId, { is_full: true }, orderId);
 
 		if (!result.success) {
 			return fail(400, {
@@ -87,16 +93,17 @@ export const actions: Actions = {
 		};
 	},
 
-	cancel: async ({ request, locals }) => {
+	cancel: async ({ request, locals, params }) => {
 		const { commercify } = locals;
 		const data = await request.formData();
 		const paymentId = data.get('paymentId') as string;
+		const orderId = params.id;
 
 		if (!paymentId) {
 			return fail(400, { error: 'Order ID is required' });
 		}
 
-		const result = await commercify.payments.cancel(paymentId);
+		const result = await commercify.payments.cancel(paymentId, orderId);
 
 		if (!result.success) {
 			return fail(400, {

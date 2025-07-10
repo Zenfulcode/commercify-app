@@ -220,7 +220,18 @@ export class CacheInvalidator {
 	 * Invalidates order cache
 	 */
 	static invalidateOrder(id: string): void {
+		// Client-side cache invalidation
 		OrderCache.invalidateOrder(id);
+		// Server-side cache invalidation
+		serverCache.invalidate(`order:${id}`);
+	}
+
+	/**
+	 * Invalidates all order-related caches (lists, etc.)
+	 */
+	static async invalidateOrderLists(): Promise<void> {
+		// Server-side cache invalidation
+		serverCache.invalidatePattern('^orders:');
 	}
 
 	/**
@@ -286,9 +297,7 @@ export class CacheHelpers {
 	/**
 	 * Creates a higher-order function to handle mutations with cache invalidation
 	 */
-	static withCacheInvalidation<T>(
-		invalidationFn: () => void | Promise<void>
-	) {
+	static withCacheInvalidation<T>(invalidationFn: () => void | Promise<void>) {
 		return async (operation: () => Promise<T>): Promise<T> => {
 			const result = await operation();
 			await invalidationFn();

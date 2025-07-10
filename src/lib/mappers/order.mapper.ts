@@ -37,6 +37,32 @@ export const mapOrderSummary = (dto: OrderSummaryDTO): OrderSummary => {
 	};
 };
 
+export const orderSummaryResponseMapper = (
+	dto: ResponseDTO<OrderSummaryDTO>
+): { data: OrderSummary | null; success: boolean; error?: string } => {
+	if (!dto || !dto.data) {
+		return {
+			data: null,
+			success: false,
+			error: 'No order summary data available'
+		};
+	}
+
+	if (dto.error) {
+		return {
+			data: null,
+			success: false,
+			error: dto.error
+		};
+	}
+
+	return {
+		data: mapOrderSummary(dto.data),
+		success: dto.success,
+		error: dto.error
+	};
+};
+
 export const orderListSummaryResponseMapper = (
 	dto: ListResponseDTO<OrderSummaryDTO>
 ): { data: PaginatedData<OrderSummary>; success: boolean; error?: string } => {
@@ -118,6 +144,8 @@ export const orderResponseMapper = (
 export const orderMapper = (dto: OrderDTO): Order => {
 	// Extract payment details from transactions
 	const paymentDetails = extractPaymentDetailsFromTransactions(dto.payment_transactions);
+
+	console.log('Payment Details:', paymentDetails);
 
 	return {
 		id: dto.id.toString(),

@@ -42,11 +42,13 @@ import {
 	currenyListMapper,
 	userResponseMapper,
 	orderListSummaryResponseMapper,
-	loginMapper
+	loginMapper,
+	orderSummaryResponseMapper
 } from '$lib/mappers';
 import { OrderCache, ProductCache } from '$lib/cache';
 import type { CreateProductInput, UpdateCategoryInput, UpdateProductInput } from '$lib/types';
 import { categoryResponseMapper } from '$lib/mappers/category.mapper';
+import { paymentResponseMapper } from '$lib/mappers/payments.mapper';
 
 /**
  * Cached API client wrapper that adds caching to API operations
@@ -252,8 +254,14 @@ export class CachedCommercifyApiClient {
 			),
 
 			updateOrderStatus: async (id: string, status: UpdateOrderStatusRequest) => {
-				const result = await this.client.orders.updateOrderStatus(id, status, orderResponseMapper);
+				const result = await this.client.orders.updateOrderStatus(
+					id,
+					status,
+					orderSummaryResponseMapper
+				);
+				// Invalidate both specific order and order lists cache
 				CacheInvalidator.invalidateOrder(id);
+				await CacheInvalidator.invalidateOrderLists();
 				return result;
 			}
 		};
@@ -261,11 +269,44 @@ export class CachedCommercifyApiClient {
 
 	get payments() {
 		return {
-			capture: (paymentId: string, options: CapturePaymentRequest) =>
-				this.client.admin.capturePayment(paymentId, options),
-			cancel: (paymentId: string) => this.client.admin.cancelPayment(paymentId),
-			refund: (paymentId: string, options: RefundPaymentRequest) =>
-				this.client.admin.refundPayment(paymentId, options)
+			capture: async (paymentId: string, options: CapturePaymentRequest, orderId?: string) => {
+				const result = await this.client.admin.capturePayment(
+					paymentId,
+					options,
+					paymentResponseMapper
+				);
+				// Invalidate order lists cache since payment status affects order listings
+				await CacheInvalidator.invalidateOrderLists();
+				// If order ID is provided, also invalidate specific order cache
+				if (orderId) {
+					CacheInvalidator.invalidateOrder(orderId);
+				}
+				return result;
+			},
+			cancel: async (paymentId: string, orderId?: string) => {
+				const result = await this.client.admin.cancelPayment(paymentId, paymentResponseMapper);
+				// Invalidate order lists cache since payment status affects order listings
+				await CacheInvalidator.invalidateOrderLists();
+				// If order ID is provided, also invalidate specific order cache
+				if (orderId) {
+					CacheInvalidator.invalidateOrder(orderId);
+				}
+				return result;
+			},
+			refund: async (paymentId: string, options: RefundPaymentRequest, orderId?: string) => {
+				const result = await this.client.admin.refundPayment(
+					paymentId,
+					options,
+					paymentResponseMapper
+				);
+				// Invalidate order lists cache since payment status affects order listings
+				await CacheInvalidator.invalidateOrderLists();
+				// If order ID is provided, also invalidate specific order cache
+				if (orderId) {
+					CacheInvalidator.invalidateOrder(orderId);
+				}
+				return result;
+			}
 		};
 	}
 
