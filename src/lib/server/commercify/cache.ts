@@ -11,6 +11,8 @@ interface ServerCacheEntry<T> {
 class ServerCache {
 	private cache = new Map<string, ServerCacheEntry<any>>();
 	private cleanupInterval: ReturnType<typeof setInterval> | null = null;
+	private hits = 0;
+	private misses = 0;
 
 	constructor() {
 		// Start cleanup interval in production
@@ -50,15 +52,18 @@ class ServerCache {
 		const entry = this.cache.get(key);
 
 		if (!entry) {
+			this.misses++;
 			return null;
 		}
 
 		// Check if expired
 		if (Date.now() - entry.timestamp > entry.ttl) {
 			this.cache.delete(key);
+			this.misses++;
 			return null;
 		}
 
+		this.hits++;
 		return entry.data;
 	}
 
@@ -77,24 +82,69 @@ class ServerCache {
 
 	clear(): void {
 		this.cache.clear();
+		this.hits = 0;
+		this.misses = 0;
 	}
 
 	size(): number {
 		return this.cache.size;
 	}
 
-	getStats(): { size: number; keys: string[] } {
+	getStats(): { size: number; keys: string[]; hits: number; misses: number; hitRate: number } {
+		const total = this.hits + this.misses;
+		const hitRate = total > 0 ? (this.hits / total) * 100 : 0;
+
 		return {
 			size: this.cache.size,
-			keys: Array.from(this.cache.keys())
+			keys: Array.from(this.cache.keys()),
+			hits: this.hits,
+			misses: this.misses,
+			hitRate: Math.round(hitRate * 100) / 100
 		};
 	}
 
-	destroy(): void {
-		if (this.cleanupInterval) {
-			clearInterval(this.cleanupInterval);
-		}
-		this.clear();
+	getCacheCounts(): Record<string, number> {
+		const keys = Array.from(this.cache.keys());
+		const counts = {
+			product: 0,
+			category: 0,
+			order: 0,
+			checkout: 0,
+			discount: 0,
+			currency: 0,
+			shipping: 0,
+			user: 0,
+			other: 0
+		};
+
+		keys.forEach((key) => {
+			if (key.startsWith('product')) {
+				counts.product++;
+			} else if (key.startsWith('categor')) {
+				counts.category++;
+			} else if (key.startsWith('order')) {
+				counts.order++;
+			} else if (key.startsWith('checkout')) {
+				counts.checkout++;
+			} else if (key.startsWith('discount')) {
+				counts.discount++;
+			} else if (key.startsWith('currenc')) {
+				counts.currency++;
+			} else if (key.startsWith('shipping')) {
+				counts.shipping++;
+			} else if (key.startsWith('user')) {
+				counts.user++;
+			} else {
+				counts.other++;
+			}
+		});
+
+		return counts;
+	}
+
+	resetStats(): void {
+		this.hits = 0;
+		this.misses = 0;
 	}
 }
 
@@ -163,8 +213,21 @@ export class CheckoutSessionCache {
 }
 
 // Memory usage monitoring
-export function getCacheStats(): { size: number; keys: string[] } {
-	return serverCache.getStats();
+export function getCacheStats(): {
+	size: number;
+	keys: string[];
+	hits: number;
+	misses: number;
+	hitRate: number;
+	counts: Record<string, number>;
+} {
+	const stats = serverCache.getStats();
+	const counts = serverCache.getCacheCounts();
+
+	return {
+		...stats,
+		counts
+	};
 }
 
 // ==========================================

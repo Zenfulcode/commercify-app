@@ -114,6 +114,11 @@ export class ProductCache {
 		Cache.invalidatePattern('^products:');
 		Cache.invalidatePattern('^product:');
 	}
+
+	static clear(): void {
+		Cache.invalidatePattern('^products:');
+		Cache.invalidatePattern('^product:');
+	}
 }
 
 export class CheckoutCache {
@@ -148,6 +153,11 @@ export class CheckoutCache {
 	static invalidateAllCheckouts(): void {
 		Cache.invalidatePattern('^checkout:');
 	}
+
+	static clear(): void {
+		Cache.invalidatePattern('^checkout:');
+		Cache.invalidatePattern('^shipping_methods');
+	}
 }
 
 export class OrderCache {
@@ -166,6 +176,10 @@ export class OrderCache {
 	static invalidateOrder(id: string): void {
 		const key = `order:${id}`;
 		Cache.invalidate(key);
+	}
+
+	static clear(): void {
+		Cache.invalidatePattern('^order:');
 	}
 }
 
