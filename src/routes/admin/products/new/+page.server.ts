@@ -13,10 +13,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const form = await superValidate(zod(productSchema));
 
 		// Get available currencies for the form
-		const [currencies, categories] = await Promise.all([
+		const [currenciesResult, categoriesResult] = await Promise.allSettled([
 			commercify.currencies.list(),
 			commercify.categories.list()
 		]);
+
+		if (currenciesResult.status === 'rejected' || categoriesResult.status === 'rejected') {
+			console.error('Failed to fetch currencies or categories');
+			return fail(500, {
+				form,
+				message: 'Failed to load currencies or categories. Please try again later.'
+			});
+		}
+
+		const currencies = currenciesResult.value;
+		const categories = categoriesResult.value;
+
 		if (!currencies || !categories) {
 			console.error('Failed to fetch currencies or categories');
 			return fail(500, {
@@ -41,13 +53,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			});
 		}
 
-		form.data.currency = currencies.data!.items.find(
-			(currency: Currency) => currency.isDefault
-		)!.code;
+		form.data.currency = currencies.data.find((currency: Currency) => currency.isDefault)!.code;
 
 		return {
 			form,
-			currencies: currencies.success ? currencies.data?.items : [],
+			currencies: currencies.success ? currencies.data : [],
 			categories: categories.success ? categories.data : []
 		};
 	} catch (error) {
