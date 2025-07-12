@@ -50,6 +50,8 @@ Thumbs.db
 .git
 .gitignore
 
+.github
+
 # Docker
 Dockerfile
 .dockerignore

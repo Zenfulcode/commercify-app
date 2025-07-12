@@ -11,7 +11,7 @@ export const load = async ({ params, locals, url }) => {
 	try {
 		// Check if we should bypass cache (e.g., after an update)
 		const bypassCache = url.searchParams.has('refresh');
-		
+
 		// Get the existing product data
 		const result = await commercify.products.get(productId, bypassCache);
 
@@ -111,10 +111,34 @@ export const actions: Actions = {
 			});
 		}
 
-		// Additional cache invalidation to ensure fresh data
-		const { serverCache } = await import('$lib/server/commercify/cache');
-		serverCache.invalidate(`product:${productId}`);
+		// Additional comprehensive cache invalidation to ensure fresh data
+		// This is especially important for active status changes
+		const { serverCache, CacheInvalidator } = await import('$lib/server/commercify/cache');
+		const { invalidateProductionProductCache, invalidateProductionCategoryCache } = await import(
+			'$lib/server/cache-coordination'
+		);
+
+		// Clear all product-related caches in the admin application
+		await CacheInvalidator.invalidateAllProductCaches(productId);
+
+		// If the active status was potentially changed, also clear category caches
+		// since category product counts might be affected
+		if (form.data.isActive !== undefined) {
+			await CacheInvalidator.invalidateAllCategoryCaches();
+		}
+
+		// Additional server cache clearing for good measure
 		serverCache.invalidatePattern('^products:');
+		serverCache.invalidatePattern('^product:');
+		serverCache.invalidatePattern('^categor'); // Clear category caches too
+
+		// IMPORTANT: Also invalidate cache in the production application
+		console.log('[Admin] Invalidating production application cache...');
+		await invalidateProductionProductCache(productId);
+
+		if (form.data.isActive !== undefined) {
+			await invalidateProductionCategoryCache();
+		}
 
 		// Invalidate all cached data to ensure fresh product data is loaded
 		redirect(303, '/admin/products');

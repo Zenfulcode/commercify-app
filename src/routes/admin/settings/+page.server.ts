@@ -21,13 +21,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	clearCache: async ({ locals }) => {
 		try {
+			const { invalidateAllProductionCaches } = await import('$lib/server/cache-coordination');
+
 			// Clear both client-side and server-side cache
 			Cache.clear();
 			serverCache.clear();
 
+			// Also clear production cache
+			console.log('[Admin Settings] Clearing all production caches...');
+			await invalidateAllProductionCaches();
+
 			return {
 				success: true,
-				message: 'All cache cleared successfully'
+				message: 'All cache cleared successfully (admin + production)'
 			};
 		} catch (error) {
 			console.error('Failed to clear cache:', error);
@@ -40,14 +46,20 @@ export const actions: Actions = {
 
 	clearProductCache: async ({ locals }) => {
 		try {
+			const { invalidateProductionProductCache } = await import('$lib/server/cache-coordination');
+
 			// Clear only product-related cache
 			ProductCache.clear();
 			serverCache.invalidatePattern('^product');
 			serverCache.invalidatePattern('^products:');
 
+			// Also clear production product cache
+			console.log('[Admin Settings] Clearing production product cache...');
+			await invalidateProductionProductCache();
+
 			return {
 				success: true,
-				message: 'Product cache cleared successfully'
+				message: 'Product cache cleared successfully (admin + production)'
 			};
 		} catch (error) {
 			console.error('Failed to clear product cache:', error);
@@ -98,13 +110,19 @@ export const actions: Actions = {
 
 	clearCategoryCache: async ({ locals }) => {
 		try {
+			const { invalidateProductionCategoryCache } = await import('$lib/server/cache-coordination');
+
 			// Clear category-related cache
 			serverCache.invalidatePattern('^category');
 			serverCache.invalidatePattern('^categories:');
 
+			// Also clear production category cache
+			console.log('[Admin Settings] Clearing production category cache...');
+			await invalidateProductionCategoryCache();
+
 			return {
 				success: true,
-				message: 'Category cache cleared successfully'
+				message: 'Category cache cleared successfully (admin + production)'
 			};
 		} catch (error) {
 			console.error('Failed to clear category cache:', error);
