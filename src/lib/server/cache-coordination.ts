@@ -6,19 +6,7 @@ import { env } from '$env/dynamic/private';
 
 const CACHE_API_KEY = env.CACHE_INVALIDATION_API_KEY || 'your-secret-key';
 
-// Determine the production app URL based on environment
-const getProductionAppUrl = (): string => {
-	// If explicitly set in environment, use that
-	if (env.PUBLIC_STORE_URL) {
-		return env.PUBLIC_STORE_URL;
-	}
-
-	// Auto-detect based on environment
-	const isDocker = env.NODE_ENV === 'production' || env.HOST === '0.0.0.0';
-	return isDocker ? 'http://hotelhunger-app:3000' : 'http://localhost:3000';
-};
-
-const PRODUCTION_APP_URL = getProductionAppUrl();
+const PRODUCTION_APP_URL = env.STORE_FRONT_URL || 'http://localhost:3000';
 
 interface CacheInvalidationRequest {
 	type: 'product' | 'category' | 'all';
@@ -40,7 +28,7 @@ export async function invalidateProductionCache(
 			apiKey: CACHE_API_KEY
 		};
 
-		console.log(`[Cache Coordination] Targeting hotelhunger-app: ${PRODUCTION_APP_URL}`);
+		console.log(`[Cache Coordination] Targeting storefront app: ${PRODUCTION_APP_URL}`);
 		console.log(`[Cache Coordination] Sending cache invalidation request: type=${type}, id=${id}`);
 
 		const response = await fetch(`${PRODUCTION_APP_URL}/api/cache/invalidate`, {
