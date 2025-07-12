@@ -167,6 +167,68 @@ const newProduct = await commercify.createProduct({
 });
 ```
 
+## 🛍️ Setting Up a Store Front (Customer Shop)
+
+This project supports running a separate customer-facing storefront alongside the admin dashboard. The storefront is a SvelteKit app that fetches product, category, and order data from the Commercify API.
+
+### 1. Prerequisites
+- Ensure you have Docker and Docker Compose installed
+- The Commercify API backend must be running (see docker-compose.yml)
+
+### 2. Environment Configuration
+Create a `.env` file for your storefront (or use Docker Compose environment variables):
+
+```env
+NODE_ENV=production
+API_BASE_URL_PROD=http://commercify-api:6091
+CACHE_INVALIDATION_API_KEY=your-cache-secret
+ORIGIN=http://localhost:3000
+```
+
+### 3. Docker Compose Setup
+Add a service for your storefront in `docker-compose.yml`:
+
+```yaml
+  storefront-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - ORIGIN=http://localhost:3000
+      - CACHE_INVALIDATION_API_KEY=your-cache-secret
+      - API_BASE_URL_PROD=http://commercify-api:6091
+    depends_on:
+      commercify-api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - hh-commercify-network
+```
+
+### 4. Running the Storefront
+
+Start all services:
+```bash
+docker-compose up -d
+```
+
+The storefront will be available at `http://localhost:3000`.
+
+### 5. Cache Invalidation
+
+When you update products or categories in the admin dashboard, cache invalidation requests are sent to the storefront (`storefront-app`) to ensure customers see fresh data immediately. Make sure the storefront implements the `/api/cache/invalidate` endpoint for this to work.
+
+### 6. Customizing the Storefront
+- Update branding, theme, and layout in the `src/routes` and `src/lib/components/ui` folders
+- Configure payment, shipping, and other integrations as needed
+
+---
+
 ## 🤝 Contributing
 
 1. Fork the repository

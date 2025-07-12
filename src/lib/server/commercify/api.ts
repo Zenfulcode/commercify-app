@@ -153,7 +153,21 @@ export class CachedCommercifyApiClient {
 				};
 
 				const result = await this.client.products.update(id, requestData, productResponseMapper);
+
+				console.log(`[API] Product ${id} updated, triggering cache invalidation`);
+				console.log(`[API] isActive changed:`, data.isActive !== undefined);
+
+				// Comprehensive cache invalidation for product updates
+				// This is especially important when changing a product's active status
 				await CacheInvalidator.invalidateAllProductCaches(id);
+
+				// If the active status might have changed, also invalidate category caches
+				// since category product counts might be affected
+				if (data.isActive !== undefined) {
+					console.log(`[API] Active status change detected, clearing category caches`);
+					await CacheInvalidator.invalidateAllCategoryCaches();
+				}
+
 				return result;
 			},
 

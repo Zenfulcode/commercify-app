@@ -52,6 +52,28 @@ export const actions: Actions = {
 			});
 		}
 
+		// Comprehensive cache invalidation after product deletion
+		const { serverCache, CacheInvalidator } = await import('$lib/server/commercify/cache');
+		const { invalidateProductionProductCache, invalidateProductionCategoryCache } = await import(
+			'$lib/server/cache-coordination'
+		);
+
+		// Clear all product-related caches in admin application
+		await CacheInvalidator.invalidateAllProductCaches(productId);
+
+		// Clear category caches since product counts might be affected
+		await CacheInvalidator.invalidateAllCategoryCaches();
+
+		// Additional server cache clearing
+		serverCache.invalidatePattern('^products:');
+		serverCache.invalidatePattern('^product:');
+		serverCache.invalidatePattern('^categor');
+
+		// IMPORTANT: Also invalidate cache in the production application
+		console.log('[Admin] Invalidating production application cache after deletion...');
+		await invalidateProductionProductCache(productId);
+		await invalidateProductionCategoryCache();
+
 		return {
 			success: true,
 			message: 'Product deleted successfully'

@@ -9,7 +9,13 @@ const config = {
 
 	kit: {
 		// Use Node.js adapter for better Docker compatibility
-		adapter: adapter()
+		adapter: adapter(),
+
+		// CSRF configuration
+		csrf: {
+			// Allow origin mismatch in development
+			checkOrigin: process.env.NODE_ENV === 'production'
+		}
 	}
 };
 

@@ -1,5 +1,5 @@
 import { dev } from '$app/environment';
-import { OrderCache, ProductCache } from '$lib/cache';
+import { OrderCache, ProductCache, CheckoutCache, Cache } from '$lib/cache';
 
 // Server-side cache implementation
 interface ServerCacheEntry<T> {
@@ -68,15 +68,30 @@ class ServerCache {
 	}
 
 	invalidate(key: string): void {
+		if (this.cache.has(key)) {
+			console.log(`[ServerCache] Invalidating cache key: ${key}`);
+		}
 		this.cache.delete(key);
 	}
 
 	invalidatePattern(pattern: string): void {
 		const regex = new RegExp(pattern);
+		const keysToDelete: string[] = [];
+
 		for (const key of this.cache.keys()) {
 			if (regex.test(key)) {
-				this.cache.delete(key);
+				keysToDelete.push(key);
 			}
+		}
+
+		if (keysToDelete.length > 0) {
+			console.log(
+				`[ServerCache] Invalidating ${keysToDelete.length} cache entries matching pattern: ${pattern}`
+			);
+			keysToDelete.forEach((key) => {
+				console.log(`[ServerCache] Deleting key: ${key}`);
+				this.cache.delete(key);
+			});
 		}
 	}
 
@@ -243,6 +258,7 @@ export class CacheInvalidator {
 	 */
 	static async invalidateProduct(id: string | number): Promise<void> {
 		const productId = id.toString();
+		console.log(`[CacheInvalidator] Invalidating product cache for ID: ${productId}`);
 
 		// Client-side cache invalidation
 		ProductCache.invalidateProduct(productId);
@@ -255,6 +271,8 @@ export class CacheInvalidator {
 	 * Invalidates all product-related caches (lists, search results, etc.)
 	 */
 	static async invalidateProductLists(): Promise<void> {
+		console.log('[CacheInvalidator] Invalidating all product lists cache');
+
 		// Client-side cache invalidation
 		ProductCache.invalidateProducts();
 
@@ -266,6 +284,8 @@ export class CacheInvalidator {
 	 * Invalidates both individual product and product lists caches
 	 */
 	static async invalidateAllProductCaches(id?: string | number): Promise<void> {
+		console.log(`[CacheInvalidator] Invalidating ALL product caches${id ? ` for ID: ${id}` : ''}`);
+
 		if (id !== undefined) {
 			await this.invalidateProduct(id);
 		}
@@ -290,13 +310,33 @@ export class CacheInvalidator {
 	}
 
 	/**
-	 * Invalidates all order-related caches (lists, etc.)
+	 * Invalidates all order-related caches (lists, search results, etc.)
 	 */
 	static async invalidateOrderLists(): Promise<void> {
+		console.log('[CacheInvalidator] Invalidating all order lists cache');
+
+		// Client-side cache invalidation
+		OrderCache.clear();
+
 		// Server-side cache invalidation
 		serverCache.invalidatePattern('^orders:');
 	}
 
+	/**
+	 * Invalidates ALL caches - use with caution, this is a nuclear option
+	 */
+	static invalidateAllCaches(): void {
+		console.log('[CacheInvalidator] Clearing ALL caches (nuclear option)');
+
+		// Clear server-side cache completely
+		serverCache.clear();
+
+		// Clear client-side caches
+		Cache.clear();
+		ProductCache.clear();
+		OrderCache.clear();
+		CheckoutCache.clear();
+	}
 	/**
 	 * Invalidates both client-side and server-side caches for a specific category
 	 */

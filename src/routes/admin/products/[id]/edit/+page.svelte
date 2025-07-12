@@ -16,7 +16,7 @@
 	import { ArrowLeft, Save, Plus, Trash2, Wand2, Upload, X, Settings } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import type { Category, Currency, Product } from '$lib/types';
-	import { invalidate } from '$app/navigation';
+	import { invalidate, invalidateAll } from '$app/navigation';
 
 	let {
 		data
@@ -44,9 +44,13 @@
 			// Invalidate product-related cached data after successful product update
 			// This ensures product lists, details, and any other cached data are refreshed
 			if (result.type === 'redirect') {
-				// Invalidate specific product-related routes for better performance
-				invalidate('/admin/products');
-				invalidate(`/admin/products/${data.productId}`);
+				// Comprehensive cache invalidation to ensure all product data is refreshed
+				invalidateAll(); // This invalidates all cached data
+
+				// Additionally invalidate specific dependencies
+				invalidate('products'); // This matches the depends('products') in the list page
+				invalidate('/admin/products'); // Route-specific invalidation
+				invalidate(`/admin/products/${data.productId}`); // Current product route
 			}
 		}
 	});
