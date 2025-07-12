@@ -8,13 +8,15 @@ export const currenyListMapper = (
 	success: boolean;
 	error?: string;
 } => {
-	if (!dto.data) {
+	if (dto.error) {
 		return {
 			data: [],
 			success: false,
-			error: 'Currency data is missing in the response'
+			error: dto.error ? dto.error : 'An error occurred while fetching currencies'
 		};
 	}
+
+	console.log('Currency list fetched successfully:', dto.data);
 
 	return {
 		data: dto.data.map(currencyMapper),

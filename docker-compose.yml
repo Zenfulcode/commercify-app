@@ -1,7 +1,7 @@
 services:
   # Commercify API Backend
   commercify-api:
-    image: ghcr.io/zenfulcode/commercifygo:v0.0.5-beta
+    image: ghcr.io/zenfulcode/commercifygo:v0.0.6-beta
     ports:
       - '6091:6091'
     environment:
