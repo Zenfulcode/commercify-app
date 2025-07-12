@@ -16,8 +16,6 @@ export const currenyListMapper = (
 		};
 	}
 
-	console.log('Currency list fetched successfully:', dto.data);
-
 	return {
 		data: dto.data.map(currencyMapper),
 		success: dto.success,
