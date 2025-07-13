@@ -145,8 +145,6 @@ export const orderMapper = (dto: OrderDTO): Order => {
 	// Extract payment details from transactions
 	const paymentDetails = extractPaymentDetailsFromTransactions(dto.payment_transactions);
 
-	console.log('Payment Details:', paymentDetails);
-
 	return {
 		id: dto.id.toString(),
 		checkoutId: dto.checkout_id?.toString() || 'N/A',

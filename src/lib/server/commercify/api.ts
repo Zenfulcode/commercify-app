@@ -28,7 +28,6 @@ import type {
 	UpdateProductRequest,
 	AdminProductListRequest,
 	UpdateCategoryRequest,
-	OrderListRequest,
 	OrderParameters,
 	CreateCategoryRequest
 } from 'commercify-api-client';
@@ -46,13 +45,7 @@ import {
 	loginMapper,
 	orderSummaryResponseMapper
 } from '$lib/mappers';
-import { OrderCache, ProductCache } from '$lib/cache';
-import type {
-	CreateCategoryInput,
-	CreateProductInput,
-	UpdateCategoryInput,
-	UpdateProductInput
-} from '$lib/types';
+import type { CreateCategoryInput, CreateProductInput, UpdateProductInput } from '$lib/types';
 import { categoryListMapper, categoryResponseMapper } from '$lib/mappers/category.mapper';
 import { paymentResponseMapper } from '$lib/mappers/payments.mapper';
 
@@ -181,6 +174,11 @@ export class CachedCommercifyApiClient {
 
 	// Checkout endpoint with session-based caching and cache invalidation on mutations
 	get checkout() {
+		// Types inferred from mappers
+		type Checkout = ReturnType<typeof checkoutMapper> extends (arg: any) => infer R ? R : any;
+		type CheckoutComplete =
+			ReturnType<typeof checkoutCompleteMapper> extends (arg: any) => infer R ? R : any;
+
 		// Helper function to handle checkout mutations with cache invalidation
 		const withCheckoutCacheInvalidation = CacheHelpers.withCacheInvalidation(() => {
 			if (this.sessionId) {
@@ -189,7 +187,7 @@ export class CachedCommercifyApiClient {
 		});
 
 		return {
-			get: async () => {
+			get: async (): Promise<Checkout> => {
 				if (!this.sessionId) {
 					return await this.client.checkout.get(checkoutMapper);
 				}
@@ -206,48 +204,49 @@ export class CachedCommercifyApiClient {
 				return checkout;
 			},
 
-			addItem: (request: AddToCheckoutRequest) =>
+			addItem: (request: AddToCheckoutRequest): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() => this.client.checkout.addItem(request, checkoutMapper)),
 
-			updateItem: (sku: string, updateRequest: { quantity: number }) =>
+			updateItem: (sku: string, updateRequest: { quantity: number }): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.updateItem(sku, updateRequest, checkoutMapper)
 				),
 
-			removeItem: (sku: string) =>
+			removeItem: (sku: string): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() => this.client.checkout.removeItem(sku, checkoutMapper)),
 
-			setCustomerDetails: (request: SetCustomerDetailsRequest) =>
+			setCustomerDetails: (request: SetCustomerDetailsRequest): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.setCustomerDetails(request, checkoutMapper)
 				),
 
-			setShippingAddress: (request: SetShippingAddressRequest) =>
+			setShippingAddress: (request: SetShippingAddressRequest): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.setShippingAddress(request, checkoutMapper)
 				),
 
-			setBillingAddress: (request: SetBillingAddressRequest) =>
+			setBillingAddress: (request: SetBillingAddressRequest): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.setBillingAddress(request, checkoutMapper)
 				),
 
-			setShippingMethod: (request: SetShippingMethodRequest) =>
+			setShippingMethod: (request: SetShippingMethodRequest): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.setShippingMethod(request, checkoutMapper)
 				),
 
-			clear: () => withCheckoutCacheInvalidation(() => this.client.checkout.clear(checkoutMapper)),
+			clear: (): Promise<Checkout> =>
+				withCheckoutCacheInvalidation(() => this.client.checkout.clear(checkoutMapper)),
 
-			applyDiscount: (discountCode: string) =>
+			applyDiscount: (discountCode: string): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.applyDiscount(discountCode, checkoutMapper)
 				),
 
-			removeDiscount: () =>
+			removeDiscount: (): Promise<Checkout> =>
 				withCheckoutCacheInvalidation(() => this.client.checkout.removeDiscount(checkoutMapper)),
 
-			complete: (paymentData: CompleteCheckoutRequest) =>
+			complete: (paymentData: CompleteCheckoutRequest): Promise<CheckoutComplete> =>
 				withCheckoutCacheInvalidation(() =>
 					this.client.checkout.complete(paymentData, checkoutCompleteMapper)
 				)
