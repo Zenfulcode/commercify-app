@@ -17,12 +17,14 @@ import type {
 import { addressMapper, discountDetailsMapper, shippingDetailsMapper } from './common.mapper';
 
 export const mapOrderSummary = (dto: OrderSummaryDTO): OrderSummary => {
+	// TODO: Consider if totalAmount should be include shipping cost, discount, etc.
+	// Currently, it only includes it all.
 	return {
 		id: dto.id.toString(),
 		orderNumber: dto.order_number,
 		orderStatus: dto.status as OrderStatus,
 		totalAmount: {
-			amount: dto.total_amount,
+			amount: dto.final_amount,
 			currency: dto.currency
 		},
 		itemsCount: dto.order_lines_amount,
@@ -151,7 +153,7 @@ export const orderMapper = (dto: OrderDTO): Order => {
 		subtotal: dto.total_amount,
 		orderNumber: dto.order_number,
 		status: dto.status as OrderStatus,
-		totalAmount: dto.total_amount,
+		totalAmount: dto.final_amount,
 		currency: dto.currency,
 		shippingAddress: addressMapper(dto.shipping_address),
 		billingAddress: addressMapper(dto.billing_address),
