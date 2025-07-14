@@ -256,7 +256,7 @@ export class CachedCommercifyApiClient {
 	// Orders endpoint with caching
 	get orders() {
 		return {
-			get: (id: string, params: OrderParameters) => {
+			get: (id: string, params?: OrderParameters) => {
 				const cacheKey = `order:${id}`;
 				return getCachedOrFetch(
 					cacheKey,
